@@ -1,11 +1,10 @@
 package com.amastigote.raftymicrocluster.handler;
 
 import com.amastigote.raftymicrocluster.NodeStatus;
-import com.amastigote.raftymicrocluster.procedure.VoteForCandidateProcedure;
-import com.amastigote.raftymicrocluster.protocol.ElectMsgType;
+import com.amastigote.raftymicrocluster.handler.msg.ElectMsgDispatcher;
+import com.amastigote.raftymicrocluster.handler.msg.HeartbeatMsgDispatcher;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
-import com.amastigote.raftymicrocluster.protocol.Role;
 import com.amastigote.raftymicrocluster.thread.HeartBeatRecvTimeoutDetectThread;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -15,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * @author: hwding
@@ -23,6 +24,9 @@ import java.io.ObjectInputStream;
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "[MSG HANDLER]")
 public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<DatagramPacket> {
+
+    private final HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker = new HeartbeatWatchdogResetInvoker();
+    private final TermResetInvoker termResetInvoker = new TermResetInvoker();
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, DatagramPacket datagramPacket) throws Exception {
@@ -41,132 +45,47 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
         log.info("udp pack recv: {}", msg);
 
         /* reInit term if necessary */
-        boolean newerTerm = false;
-        synchronized (NodeStatus.class) {
-            if (NodeStatus.currentTerm() < msg.getTerm()) {
-                NodeStatus.reInitTerm(msg.getTerm());
-                newerTerm = true;
-            }
-        }
+        boolean newerTerm = this.termResetInvoker.apply(msg.getTerm(), true);
 
         if (MsgType.ELECT.equals(msg.getMsgType())) {
-            ElectMsgType electMsgType = (ElectMsgType) msg.getData();
-
-            if (electMsgType.equals(ElectMsgType.VOTE_REQ)) {
-                NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
-                if (NodeStatus.role().equals(Role.LEADER)) {
-
-                    /* step down and vote for this candidate */
-                    synchronized (NodeStatus.class) {
-                        NodeStatus.setRoleTo(Role.FOLLOWER);
-                        NodeStatus.heartbeatThread().interrupt();
-
-                        if (!NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                            NodeStatus.setHeartbeatRecvTimeoutDetectThread(new HeartBeatRecvTimeoutDetectThread());
-                            NodeStatus.heartbeatRecvTimeoutDetectThread().start();
-                        }
-
-                        log.info("vote for newer term candidate and step down");
-                    }
-                    new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
-                    return;
-                }
-
-                if (NodeStatus.role().equals(Role.CANDIDATE)) {
-                    if (newerTerm) {
-
-                        /* step down and vote for this candidate */
-                        //noinspection Duplicates
-                        synchronized (NodeStatus.class) {
-                            NodeStatus.setRoleTo(Role.FOLLOWER);
-                            NodeStatus.heartbeatThread().interrupt();
-
-                            if (NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                                NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
-                            } else {
-                                NodeStatus.setHeartbeatRecvTimeoutDetectThread(new HeartBeatRecvTimeoutDetectThread());
-                                NodeStatus.heartbeatRecvTimeoutDetectThread().start();
-                            }
-                        }
-                        new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
-
-                        log.info("vote for newer term candidate and step down");
-                        return;
-                    }
-                    log.info("competitor's same term vote req, do nothing");
-                    return;
-                }
-
-                if (NodeStatus.role().equals(Role.FOLLOWER) && newerTerm) {
-                    new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
-
-                    //noinspection Duplicates
-                    if (NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                        NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
-                    } else {
-                        synchronized (NodeStatus.class) {
-                            if (!NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                                NodeStatus.setHeartbeatRecvTimeoutDetectThread(new HeartBeatRecvTimeoutDetectThread());
-                                NodeStatus.heartbeatRecvTimeoutDetectThread().start();
-                            }
-                        }
-                    }
-
-                    return;
-                }
-            }
-
-            if (electMsgType.equals(ElectMsgType.VOTE_RES)) {
-                if (NodeStatus.role().equals(Role.CANDIDATE)) {
-                    int voteCnt = NodeStatus.incrVoteCnt();
-                    if (voteCnt >= NodeStatus.majorityNodeCnt()) {
-                        NodeStatus.voteCntTimeoutDetectThread().interrupt();
-                    }
-                }
-                return;
-            }
+            ElectMsgDispatcher.dispatch(msg, newerTerm, this.heartbeatWatchdogResetInvoker);
         }
 
         if (MsgType.HEARTBEAT.equals(msg.getMsgType())) {
+            HeartbeatMsgDispatcher.dispatch(msg, this.heartbeatWatchdogResetInvoker);
+        }
+    }
 
-            if (NodeStatus.role().equals(Role.LEADER) && msg.getTerm() > NodeStatus.currentTerm()) {
-                NodeStatus.reInitTerm(msg.getTerm());
+    public static class HeartbeatWatchdogResetInvoker implements Function<Boolean, Void> {
 
-                /* step down */
-                //noinspection Duplicates
-                synchronized (NodeStatus.class) {
-                    NodeStatus.setRoleTo(Role.FOLLOWER);
-                    NodeStatus.heartbeatThread().interrupt();
-
-                    if (NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                        NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
-                    } else {
-                        NodeStatus.setHeartbeatRecvTimeoutDetectThread(new HeartBeatRecvTimeoutDetectThread());
-                        NodeStatus.heartbeatRecvTimeoutDetectThread().start();
-                    }
+        @Override
+        public Void apply(Boolean needResetTimerIfAlreadyActive) {
+            synchronized (NodeStatus.class) {
+                if (!NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
+                    NodeStatus.setHeartbeatRecvTimeoutDetectThread(new HeartBeatRecvTimeoutDetectThread());
+                    NodeStatus.heartbeatRecvTimeoutDetectThread().start();
+                } else if (needResetTimerIfAlreadyActive) {
+                    NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
                 }
-
-                return;
             }
 
-            /* reset heartbeat timer if not alive */
-            if (!NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                log.info("hbRecvTimeoutDetThread is not alive, restart");
+            return null;
+        }
+    }
 
-                synchronized (NodeStatus.class) {
-                    /* recheck */
-                    if (!NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                        NodeStatus.setHeartbeatRecvTimeoutDetectThread(new HeartBeatRecvTimeoutDetectThread());
-                        NodeStatus.heartbeatRecvTimeoutDetectThread().start();
-                    } else {
-                        NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
+    public static class TermResetInvoker implements BiFunction<Integer, Boolean, Boolean> {
+
+        @Override
+        public Boolean apply(Integer term, Boolean needUpdateTerm) {
+            synchronized (NodeStatus.class) {
+                if (NodeStatus.currentTerm() < term) {
+                    if (needUpdateTerm) {
+                        NodeStatus.reInitTerm(term);
                     }
+                    return true;
                 }
-                return;
+                return false;
             }
-
-            /* standard heartbeat recv condition */
-            NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
         }
     }
 }

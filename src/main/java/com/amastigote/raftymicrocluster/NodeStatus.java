@@ -16,7 +16,6 @@ public final class NodeStatus {
     private static String nodeName;
     private static int nodePort;
     private static Role role = Role.FOLLOWER;
-    private static Integer votedTerm = -1;
     private static AtomicInteger voteCnt = new AtomicInteger();
 
     private static Thread heartbeatThread;
@@ -24,6 +23,8 @@ public final class NodeStatus {
     private static Thread heartbeatRecvTimeoutDetectThread;
 
     private static AtomicInteger currentTerm = new AtomicInteger(0);
+    private static AtomicInteger votedTerm = new AtomicInteger(-1);
+
     private static int totalNodeCnt;
 
     private static CommunicateToOthersParamPack paramPack;
@@ -67,16 +68,21 @@ public final class NodeStatus {
     }
 
     public static synchronized void setRoleTo(Role newRole) {
+        if ((!Role.CANDIDATE.equals(NodeStatus.role)) && Role.CANDIDATE.equals(newRole)) {
+            log.info("role transfer to {}, reset vote counter", Role.CANDIDATE.toString());
+            NodeStatus.resetVoteCnt();
+        }
+
         if (role.equals(newRole)) {
-            log.warn("unnecessary role transfer: already " + role.toString());
+            log.warn("unnecessary role transfer: already {}", role.toString());
         }
 
         if (role.equals(Role.FOLLOWER) && newRole.equals(Role.LEADER)) {
-            log.error("illegal role transfer: " + Role.FOLLOWER.toString() + " -> " + Role.LEADER.toString());
+            log.error("illegal role transfer: {} -> {}", Role.FOLLOWER.toString(), Role.LEADER.toString());
             System.exit(-1);
         }
 
-        log.warn("role transfer applied: " + role.toString() + " -> " + newRole.toString());
+        log.warn("role transfer applied: {} -> {}", role.toString(), newRole.toString());
         role = newRole;
     }
 
@@ -101,7 +107,7 @@ public final class NodeStatus {
     }
 
     public static Integer votedTerm() {
-        return NodeStatus.votedTerm;
+        return NodeStatus.votedTerm.get();
     }
 
     public static Role role() {
@@ -109,9 +115,18 @@ public final class NodeStatus {
     }
 
     public static void updateVotedTerm(int term) {
-        if (NodeStatus.votedTerm >= term) {
-            log.error("illegal status transfer: votedTerm {} >= current vote term {}", NodeStatus.votedTerm, term);
-            System.exit(-1);
+        while (true) {
+            int oldVotedTerm = NodeStatus.votedTerm.get();
+            if (oldVotedTerm >= term) {
+                log.warn("illegal voted term transfer: votedTerm {} >= current vote term {}", oldVotedTerm, term);
+                break;
+            }
+
+            boolean set = NodeStatus.votedTerm.compareAndSet(oldVotedTerm, term);
+
+            if (set) {
+                break;
+            }
         }
     }
 

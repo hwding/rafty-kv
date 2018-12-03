@@ -34,14 +34,15 @@ public class VoteForCandidateProcedure extends Thread {
     public void run() {
         NodeStatus.setRoleTo(Role.FOLLOWER);
 
-        if (candidateTerm == NodeStatus.votedTerm()) {
+        if (candidateTerm <= NodeStatus.votedTerm()) {
             log.warn("has voted in term " + candidateTerm, " give up");
             return;
         }
-        synchronized (NodeStatus.votedTerm()) {
+
+        synchronized (NodeStatus.class) {
 
             /* double check */
-            if (candidateTerm == NodeStatus.votedTerm()) {
+            if (candidateTerm <= NodeStatus.votedTerm()) {
                 log.warn("has voted in term " + candidateTerm, " give up");
                 return;
             }

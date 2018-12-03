@@ -60,18 +60,10 @@ public class HeartBeatThread extends Thread {
                 }
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
-                log.error(null, e);
-                break;
+                log.warn("heartbeat thread stopped");
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("", e);
             }
         }
-
-//        for (int i = 0; i < this.paramPack.getDesChns().length; i++) {
-//            int finalI = i;
-//            this.paramPack.getDesChns()[i]
-//                    .closeFuture()
-//                    .addListener(future -> log.debug("heartbeat channel shutdown for " + this.paramPack.getDesPortsNum()[finalI]));
-//        }
     }
 }

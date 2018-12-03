@@ -22,7 +22,6 @@ public class ReElectionInitiateProcedure extends Thread {
         /* transfer state */
         synchronized (NodeStatus.class) {
             newTerm = NodeStatus.incrTerm();
-            NodeStatus.resetVoteCnt();
             NodeStatus.setRoleTo(Role.CANDIDATE);
         }
         log.info("term increased to " + newTerm);
