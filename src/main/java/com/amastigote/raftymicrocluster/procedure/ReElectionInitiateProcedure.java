@@ -23,6 +23,9 @@ public class ReElectionInitiateProcedure extends Thread {
         synchronized (NodeStatus.class) {
             newTerm = NodeStatus.incrTerm();
             NodeStatus.setRoleTo(Role.CANDIDATE);
+
+            /* candidate should first vote for itself */
+            NodeStatus.resetVoteCnt(1);
         }
         log.info("term increased to " + newTerm);
 

@@ -70,7 +70,6 @@ public final class NodeStatus {
     public static synchronized void setRoleTo(Role newRole) {
         if ((!Role.CANDIDATE.equals(NodeStatus.role)) && Role.CANDIDATE.equals(newRole)) {
             log.info("role transfer to {}, reset vote counter", Role.CANDIDATE.toString());
-            NodeStatus.resetVoteCnt();
         }
 
         if (role.equals(newRole)) {
@@ -98,8 +97,8 @@ public final class NodeStatus {
         return voteCnt.incrementAndGet();
     }
 
-    public static void resetVoteCnt() {
-        voteCnt.set(0);
+    public static void resetVoteCnt(int newValue) {
+        voteCnt.set(newValue);
     }
 
     public static int voteCnt() {
