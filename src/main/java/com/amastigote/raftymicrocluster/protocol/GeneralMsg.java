@@ -18,5 +18,7 @@ public class GeneralMsg implements Serializable {
     private MsgType msgType;
     private Object data;
     private Integer term;
+
+    /* performs as the serverId in this case */
     private Integer responseToPort;
 }

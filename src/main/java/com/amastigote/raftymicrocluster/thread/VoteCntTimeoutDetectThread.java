@@ -22,15 +22,22 @@ public class VoteCntTimeoutDetectThread extends Thread {
         try {
             synchronized (this) {
                 super.wait(heartBeatTimeout);
-                if ((!isLeaderNow()) && (!hasOtherLeaderNow())) {
+                log.info("not collecting enough votes after {} ms", heartBeatTimeout);
+                if (isSplitVote()) {
                     new ReElectionInitiateProcedure().start();
                 }
             }
         } catch (InterruptedException e) {
-            if ((!isLeaderNow()) && (!hasOtherLeaderNow())) {
+            if (isSplitVote()) {
                 new ReElectionInitiateProcedure().start();
+                log.warn("split vote detected, start a new re-election procedure");
             }
+            log.info("is LEADER or has other LEADER, exit without any further action");
         }
+    }
+
+    private boolean isSplitVote() {
+        return (!isLeaderNow()) && (!hasOtherLeaderNow());
     }
 
     /* recheck */

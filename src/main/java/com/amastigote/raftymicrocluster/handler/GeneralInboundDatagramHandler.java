@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -42,17 +41,17 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
         ObjectInputStream stream = new ObjectInputStream(byteArrayInputStream);
         msg = (GeneralMsg) stream.readObject();
 
-        log.info("udp pack recv: {}", msg);
+        log.info("udp datagram recv: {}", msg);
 
-        /* reInit term if necessary */
-        boolean newerTerm = this.termResetInvoker.apply(msg.getTerm(), true);
+        /* reInit term if msg's term is higher */
+        boolean newerTerm = this.termResetInvoker.apply(msg.getTerm());
 
         if (MsgType.ELECT.equals(msg.getMsgType())) {
             ElectMsgDispatcher.dispatch(msg, newerTerm, this.heartbeatWatchdogResetInvoker);
         }
 
         if (MsgType.HEARTBEAT.equals(msg.getMsgType())) {
-            HeartbeatMsgDispatcher.dispatch(msg, this.heartbeatWatchdogResetInvoker);
+            HeartbeatMsgDispatcher.dispatch(this.heartbeatWatchdogResetInvoker);
         }
     }
 
@@ -73,19 +72,22 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
         }
     }
 
-    public static class TermResetInvoker implements BiFunction<Integer, Boolean, Boolean> {
+    public static class TermResetInvoker implements Function<Integer, Boolean> {
 
         @Override
-        public Boolean apply(Integer term, Boolean needUpdateTerm) {
-            synchronized (NodeStatus.class) {
-                if (NodeStatus.currentTerm() < term) {
-                    if (needUpdateTerm) {
+        public Boolean apply(Integer term) {
+            if (NodeStatus.currentTerm() < term) {
+                synchronized (NodeStatus.class) {
+                    if (NodeStatus.currentTerm() < term) {
                         NodeStatus.reInitTerm(term);
+                        NodeStatus.resetVotedFor();
+                        return true;
                     }
-                    return true;
+                    return false;
                 }
-                return false;
             }
+
+            return false;
         }
     }
 }

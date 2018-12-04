@@ -16,3 +16,4 @@ Using netty's event-driven udp for communication.
 - Leadership transfer extention
 - Cluster membership changes
 - Log compaction
+- Lock free

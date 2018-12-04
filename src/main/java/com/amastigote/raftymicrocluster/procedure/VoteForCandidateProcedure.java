@@ -4,7 +4,6 @@ import com.amastigote.raftymicrocluster.NodeStatus;
 import com.amastigote.raftymicrocluster.protocol.ElectMsgType;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
-import com.amastigote.raftymicrocluster.protocol.Role;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.socket.DatagramPacket;
@@ -32,18 +31,19 @@ public class VoteForCandidateProcedure extends Thread {
 
     @Override
     public void run() {
-        NodeStatus.setRoleTo(Role.FOLLOWER);
+        int votedFor = NodeStatus.votedFor();
 
-        if (candidateTerm <= NodeStatus.votedTerm()) {
-            log.warn("has voted in term " + candidateTerm, " give up");
+        if (votedFor != 0) {
+            log.warn("has voted for {} in term {}, give up", votedFor, candidateTerm);
             return;
         }
 
         synchronized (NodeStatus.class) {
+            votedFor = NodeStatus.votedFor();
 
             /* double check */
-            if (candidateTerm <= NodeStatus.votedTerm()) {
-                log.warn("has voted in term " + candidateTerm, " give up");
+            if (NodeStatus.votedFor() != 0) {
+                log.warn("has voted for {} in term {}, give up", votedFor, candidateTerm);
                 return;
             }
 
@@ -79,10 +79,10 @@ public class VoteForCandidateProcedure extends Thread {
                         log.info("failed to vote for " + NodeStatus.paramPack().getDesPortsNum()[finalDesIdx]);
                         return;
                     }
-                    log.info("voted for " + NodeStatus.paramPack().getDesPortsNum()[finalDesIdx]);
+                    boolean voted = NodeStatus.voteFor(candidatePort);
+                    log.info("voted for {}, votedFor update result {}", NodeStatus.paramPack().getDesPortsNum()[finalDesIdx], voted);
                 });
 
-                NodeStatus.updateVotedTerm(candidateTerm);
             } catch (IOException e) {
                 log.error("error when sending datagram", e);
             }

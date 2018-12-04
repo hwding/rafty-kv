@@ -23,7 +23,10 @@ public final class NodeStatus {
     private static Thread heartbeatRecvTimeoutDetectThread;
 
     private static AtomicInteger currentTerm = new AtomicInteger(0);
-    private static AtomicInteger votedTerm = new AtomicInteger(-1);
+//    private static AtomicInteger votedTerm = new AtomicInteger(-1);
+
+    /* refer to com.amastigote.raftymicrocluster.protocol.GeneralMsg.responseToPort, voted for candidateId */
+    private static AtomicInteger votedFor = new AtomicInteger(0);
 
     private static int totalNodeCnt;
 
@@ -101,32 +104,56 @@ public final class NodeStatus {
         voteCnt.set(newValue);
     }
 
+    public static void resetVotedFor() {
+        NodeStatus.votedFor.set(0);
+    }
+
     public static int voteCnt() {
         return voteCnt.get();
     }
 
-    public static Integer votedTerm() {
-        return NodeStatus.votedTerm.get();
+    public static int votedFor() {
+        return NodeStatus.votedFor.get();
     }
+
+//    public static Integer votedTerm() {
+//        return NodeStatus.votedTerm.get();
+//    }
 
     public static Role role() {
         return NodeStatus.role;
     }
 
-    public static void updateVotedTerm(int term) {
-        while (true) {
-            int oldVotedTerm = NodeStatus.votedTerm.get();
-            if (oldVotedTerm >= term) {
-                log.warn("illegal voted term transfer: votedTerm {} >= current vote term {}", oldVotedTerm, term);
-                break;
+//    public static void updateVotedTerm(int term) {
+//        while (true) {
+//            int oldVotedTerm = NodeStatus.votedTerm.get();
+//            if (oldVotedTerm >= term) {
+//                log.warn("illegal voted term transfer: votedTerm {} >= current vote term {}", oldVotedTerm, term);
+//                break;
+//            }
+//
+//            boolean set = NodeStatus.votedTerm.compareAndSet(oldVotedTerm, term);
+//
+//            if (set) {
+//                break;
+//            }
+//        }
+//    }
+
+    public static boolean voteFor(Integer candidateId) {
+        boolean set = false;
+        while (!set) {
+            int votedFor = NodeStatus.votedFor.get();
+
+            if (votedFor != 0) {
+                log.warn("already voted for {} in current term, give up", votedFor);
+                return false;
             }
 
-            boolean set = NodeStatus.votedTerm.compareAndSet(oldVotedTerm, term);
-
-            if (set) {
-                break;
-            }
+            set = NodeStatus.votedFor.compareAndSet(0, candidateId);
         }
+
+        return true;
     }
 
     static void setHeartbeatThread(Thread thread) {

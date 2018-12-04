@@ -2,7 +2,6 @@ package com.amastigote.raftymicrocluster.handler.msg;
 
 import com.amastigote.raftymicrocluster.NodeStatus;
 import com.amastigote.raftymicrocluster.handler.GeneralInboundDatagramHandler;
-import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.Role;
 
 /**
@@ -11,9 +10,8 @@ import com.amastigote.raftymicrocluster.protocol.Role;
  */
 @SuppressWarnings("JavaDoc")
 public class HeartbeatMsgDispatcher {
-    public static void dispatch(GeneralMsg msg, GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker) {
-        if (NodeStatus.role().equals(Role.LEADER) && msg.getTerm() > NodeStatus.currentTerm()) {
-            NodeStatus.reInitTerm(msg.getTerm());
+    public static void dispatch(GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker) {
+        if (NodeStatus.role().equals(Role.LEADER)) {
 
             /* step down */
             synchronized (NodeStatus.class) {
@@ -25,6 +23,22 @@ public class HeartbeatMsgDispatcher {
             return;
         }
 
+        if (NodeStatus.role().equals(Role.CANDIDATE)) {
+
+            /* give up election procedure */
+            synchronized (NodeStatus.class) {
+                NodeStatus.setRoleTo(Role.FOLLOWER);
+            }
+            if (NodeStatus.voteCntTimeoutDetectThread().isAlive()) {
+                NodeStatus.voteCntTimeoutDetectThread().interrupt();
+            }
+
+            heartbeatWatchdogResetInvoker.apply(false);
+
+            return;
+        }
+
+        /* Role.FOLLOWER */
         heartbeatWatchdogResetInvoker.apply(true);
     }
 }
