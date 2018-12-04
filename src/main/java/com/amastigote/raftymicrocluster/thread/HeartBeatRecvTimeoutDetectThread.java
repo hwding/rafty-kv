@@ -15,7 +15,10 @@ import java.util.Random;
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "[HEARTBEAT TIMEOUT DETC THREAD]")
 public class HeartBeatRecvTimeoutDetectThread extends Thread {
-    private long heartBeatTimeout = new Random(System.nanoTime()).nextInt(2000) + Timeout.HEARTBEAT_TIMEOUT_BASE;
+    private final static long heartBeatTimeout =
+            new Random(System.nanoTime()).nextInt(Math.toIntExact(Timeout.HEARTBEAT_TIMEOUT_ADDITIONAL_RANGE))
+                    +
+                    Timeout.HEARTBEAT_TIMEOUT_BASE;
 
     @Override
     public void run() {

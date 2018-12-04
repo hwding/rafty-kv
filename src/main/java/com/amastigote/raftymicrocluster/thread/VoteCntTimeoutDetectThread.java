@@ -15,14 +15,16 @@ import java.util.Random;
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "[VOTE CNT TIMEOUT DETC THREAD]")
 public class VoteCntTimeoutDetectThread extends Thread {
-    private long heartBeatTimeout = new Random(System.nanoTime()).nextInt(Math.toIntExact(Timeout.ELECTION_TIMEOUT_ADDITIONAL_RANGE)) + Timeout.ELECTION_TIMEOUT_BASE;
+    private final static long electionTimeout = new Random(System.nanoTime()).nextInt(Math.toIntExact(Timeout.ELECTION_TIMEOUT_ADDITIONAL_RANGE))
+            +
+            Timeout.ELECTION_TIMEOUT_BASE;
 
     @Override
     public void run() {
         try {
             synchronized (this) {
-                super.wait(heartBeatTimeout);
-                log.info("not collecting enough votes after {} ms", heartBeatTimeout);
+                super.wait(electionTimeout);
+                log.info("not collecting enough votes after {} ms", electionTimeout);
                 if (isSplitVote()) {
                     new ReElectionInitiateProcedure().start();
                 }

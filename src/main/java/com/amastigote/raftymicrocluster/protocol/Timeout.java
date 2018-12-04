@@ -6,7 +6,8 @@ package com.amastigote.raftymicrocluster.protocol;
  */
 @SuppressWarnings("JavaDoc")
 public class Timeout {
-    public final static long HEARTBEAT_TIMEOUT_BASE = 6000L;
-    public final static long ELECTION_TIMEOUT_BASE = 5000L;
-    public final static long ELECTION_TIMEOUT_ADDITIONAL_RANGE = 2000L;
+    public final static long HEARTBEAT_TIMEOUT_BASE = 4000L;
+    public final static long ELECTION_TIMEOUT_BASE = 2500L;
+    public final static long HEARTBEAT_TIMEOUT_ADDITIONAL_RANGE = 1500L;
+    public final static long ELECTION_TIMEOUT_ADDITIONAL_RANGE = 1500L;
 }
