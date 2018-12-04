@@ -7,5 +7,10 @@ package com.amastigote.raftymicrocluster.protocol;
 @SuppressWarnings("JavaDoc")
 public enum MsgType {
     HEARTBEAT,
-    ELECT
+    ELECT;
+
+    public enum ElectMsgType {
+        VOTE_REQ,
+        VOTE_RES
+    }
 }

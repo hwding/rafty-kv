@@ -3,8 +3,8 @@ package com.amastigote.raftymicrocluster.handler.msg;
 import com.amastigote.raftymicrocluster.NodeStatus;
 import com.amastigote.raftymicrocluster.handler.GeneralInboundDatagramHandler;
 import com.amastigote.raftymicrocluster.procedure.VoteForCandidateProcedure;
-import com.amastigote.raftymicrocluster.protocol.ElectMsgType;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
+import com.amastigote.raftymicrocluster.protocol.MsgType;
 import com.amastigote.raftymicrocluster.protocol.Role;
 import com.amastigote.raftymicrocluster.thread.HeartBeatThread;
 import lombok.extern.slf4j.Slf4j;
@@ -18,9 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 public final class ElectMsgDispatcher {
 
     public static void dispatch(GeneralMsg msg, boolean newerTerm, GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker) {
-        ElectMsgType electMsgType = (ElectMsgType) msg.getData();
+        MsgType.ElectMsgType electMsgType = (MsgType.ElectMsgType) msg.getData();
 
-        if (electMsgType.equals(ElectMsgType.VOTE_REQ)) {
+        if (electMsgType.equals(MsgType.ElectMsgType.VOTE_REQ)) {
             NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
             if (NodeStatus.role().equals(Role.LEADER)) {
 
@@ -65,7 +65,7 @@ public final class ElectMsgDispatcher {
             return;
         }
 
-        if (electMsgType.equals(ElectMsgType.VOTE_RES)) {
+        if (electMsgType.equals(MsgType.ElectMsgType.VOTE_RES)) {
             if (NodeStatus.role().equals(Role.CANDIDATE)) {
                 int voteCnt = NodeStatus.incrVoteCnt();
                 if (voteCnt >= NodeStatus.majorityNodeCnt()) {
@@ -82,8 +82,10 @@ public final class ElectMsgDispatcher {
                     }
                     NodeStatus.voteCntTimeoutDetectThread().interrupt();
                 }
+                return;
             }
-            return;
+
+            log.info("the candidate may stepped down or already become leader, ignore VOTE_RES");
         }
     }
 }

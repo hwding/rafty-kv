@@ -2,7 +2,6 @@ package com.amastigote.raftymicrocluster.procedure;
 
 import com.amastigote.raftymicrocluster.NodeStatus;
 import com.amastigote.raftymicrocluster.RemoteCommunicationParamPack;
-import com.amastigote.raftymicrocluster.protocol.ElectMsgType;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
 import io.netty.buffer.ByteBuf;
@@ -65,7 +64,7 @@ public class VoteForCandidateProcedure extends Thread {
 
             GeneralMsg msg = new GeneralMsg();
             msg.setMsgType(MsgType.ELECT);
-            msg.setData(ElectMsgType.VOTE_RES);
+            msg.setData(MsgType.ElectMsgType.VOTE_RES);
             msg.setTerm(candidateTerm);
 
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
