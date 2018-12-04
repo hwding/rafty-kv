@@ -11,8 +11,11 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -25,6 +28,7 @@ import java.util.stream.Stream;
 public class Bootstrap {
 
     public static void main(String[] args) {
+        log.info("init...");
         Random random = new Random(System.nanoTime());
         NodeStatus.init("Node-" + Integer.valueOf(args[0]), Integer.valueOf(args[0]), args.length);
         EventLoopGroup loopGroup = new NioEventLoopGroup();
@@ -36,28 +40,32 @@ public class Bootstrap {
 
         log.info("node @ {}, remote @ {}", NodeStatus.nodePort(), Arrays.toString(desPorts));
 
-        int[] desPortsNum = Stream
+        List<RemoteCommunicationParamPack.RemoteTarget> communicationTargets = Stream
                 .of(desPorts)
                 .mapToInt(Integer::valueOf)
-                .toArray();
-        Channel[] desChns = new Channel[desPortsNum.length];
+                .mapToObj(port -> {
+                    while (true) {
+                        try {
+                            Channel remoteChn = new io.netty.bootstrap.Bootstrap()
+                                    .group(loopGroup)
+                                    .channel(NioDatagramChannel.class)
+                                    .handler(doNothingInboundDatagramHandler)
+                                    .bind(8100 + random.nextInt(100))
+                                    .sync()
+                                    .channel();
+                            InetSocketAddress remoteAddr = new InetSocketAddress("localhost", port);
 
-        for (int i = 0; i < desChns.length; ++i) {
-            try {
-                desChns[i] = new io.netty.bootstrap.Bootstrap()
-                        .group(loopGroup)
-                        .channel(NioDatagramChannel.class)
-                        .handler(doNothingInboundDatagramHandler)
-                        .bind(8100 + random.nextInt(100))
-                        .sync()
-                        .channel();
-            } catch (Exception e) {
-                --i;
-                log.warn("port already bind? retry...");
-            }
-        }
+                            return new RemoteCommunicationParamPack.RemoteTarget(
+                                    port, remoteChn, remoteAddr
+                            );
+                        } catch (Exception e) {
+                            log.warn("port already bind? retry...");
+                        }
+                    }
+                })
+                .collect(Collectors.toList());
 
-        CommunicateToOthersParamPack paramPack = new CommunicateToOthersParamPack(desChns, desPortsNum);
+        RemoteCommunicationParamPack paramPack = new RemoteCommunicationParamPack(communicationTargets);
         NodeStatus.setParamPack(paramPack);
 
         Thread heartBeatRecvTimeoutDetectThread = new HeartBeatRecvTimeoutDetectThread();
@@ -77,5 +85,7 @@ public class Bootstrap {
                 .channel(NioDatagramChannel.class)
                 .handler(generalInboundDatagramHandler)
                 .bind(NodeStatus.nodePort());
+
+        log.info("init ok");
     }
 }

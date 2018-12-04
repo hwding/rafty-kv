@@ -3,7 +3,7 @@ package com.amastigote.raftymicrocluster.thread;
 import com.amastigote.raftymicrocluster.NodeStatus;
 import com.amastigote.raftymicrocluster.procedure.ReElectionInitiateProcedure;
 import com.amastigote.raftymicrocluster.protocol.Role;
-import com.amastigote.raftymicrocluster.protocol.Timeout;
+import com.amastigote.raftymicrocluster.protocol.TimeSpan;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Random;
@@ -16,9 +16,9 @@ import java.util.Random;
 @Slf4j(topic = "[HEARTBEAT TIMEOUT DETC THREAD]")
 public class HeartBeatRecvTimeoutDetectThread extends Thread {
     private final static long heartBeatTimeout =
-            new Random(System.nanoTime()).nextInt(Math.toIntExact(Timeout.HEARTBEAT_TIMEOUT_ADDITIONAL_RANGE))
+            new Random(System.nanoTime()).nextInt(Math.toIntExact(TimeSpan.HEARTBEAT_TIMEOUT_ADDITIONAL_RANGE))
                     +
-                    Timeout.HEARTBEAT_TIMEOUT_BASE;
+                    TimeSpan.HEARTBEAT_TIMEOUT_BASE;
 
     @Override
     public void run() {
@@ -28,7 +28,7 @@ public class HeartBeatRecvTimeoutDetectThread extends Thread {
                     super.wait(heartBeatTimeout);
                 }
 
-                log.warn("HB not recv in " + heartBeatTimeout + "ms");
+                log.warn("HB not recv in {} ms", heartBeatTimeout);
                 if (NodeStatus.role().equals(Role.CANDIDATE)) {
                     continue;
                 }

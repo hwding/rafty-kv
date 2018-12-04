@@ -30,7 +30,7 @@ public final class NodeStatus {
 
     private static int totalNodeCnt;
 
-    private static CommunicateToOthersParamPack paramPack;
+    private static RemoteCommunicationParamPack paramPack;
 
     synchronized static void init(String nodeName, int nodePort, int totalNodeCnt) {
         NodeStatus.nodeName = nodeName;
@@ -88,11 +88,11 @@ public final class NodeStatus {
         role = newRole;
     }
 
-    static void setParamPack(CommunicateToOthersParamPack paramPack) {
+    static void setParamPack(RemoteCommunicationParamPack paramPack) {
         NodeStatus.paramPack = paramPack;
     }
 
-    public static CommunicateToOthersParamPack paramPack() {
+    public static RemoteCommunicationParamPack paramPack() {
         return NodeStatus.paramPack;
     }
 
@@ -116,29 +116,9 @@ public final class NodeStatus {
         return NodeStatus.votedFor.get();
     }
 
-//    public static Integer votedTerm() {
-//        return NodeStatus.votedTerm.get();
-//    }
-
     public static Role role() {
         return NodeStatus.role;
     }
-
-//    public static void updateVotedTerm(int term) {
-//        while (true) {
-//            int oldVotedTerm = NodeStatus.votedTerm.get();
-//            if (oldVotedTerm >= term) {
-//                log.warn("illegal voted term transfer: votedTerm {} >= current vote term {}", oldVotedTerm, term);
-//                break;
-//            }
-//
-//            boolean set = NodeStatus.votedTerm.compareAndSet(oldVotedTerm, term);
-//
-//            if (set) {
-//                break;
-//            }
-//        }
-//    }
 
     public static boolean voteFor(Integer candidateId) {
         boolean set = false;
@@ -156,7 +136,7 @@ public final class NodeStatus {
         return true;
     }
 
-    static void setHeartbeatThread(Thread thread) {
+    public static void setHeartbeatThread(Thread thread) {
         NodeStatus.heartbeatThread = thread;
     }
 

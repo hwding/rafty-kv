@@ -3,7 +3,7 @@ package com.amastigote.raftymicrocluster.thread;
 import com.amastigote.raftymicrocluster.NodeStatus;
 import com.amastigote.raftymicrocluster.procedure.ReElectionInitiateProcedure;
 import com.amastigote.raftymicrocluster.protocol.Role;
-import com.amastigote.raftymicrocluster.protocol.Timeout;
+import com.amastigote.raftymicrocluster.protocol.TimeSpan;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Random;
@@ -15,9 +15,9 @@ import java.util.Random;
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "[VOTE CNT TIMEOUT DETC THREAD]")
 public class VoteCntTimeoutDetectThread extends Thread {
-    private final static long electionTimeout = new Random(System.nanoTime()).nextInt(Math.toIntExact(Timeout.ELECTION_TIMEOUT_ADDITIONAL_RANGE))
+    private final static long electionTimeout = new Random(System.nanoTime()).nextInt(Math.toIntExact(TimeSpan.ELECTION_TIMEOUT_ADDITIONAL_RANGE))
             +
-            Timeout.ELECTION_TIMEOUT_BASE;
+            TimeSpan.ELECTION_TIMEOUT_BASE;
 
     @Override
     public void run() {
@@ -30,36 +30,12 @@ public class VoteCntTimeoutDetectThread extends Thread {
                 }
             }
         } catch (InterruptedException e) {
-            if (isSplitVote()) {
-                new ReElectionInitiateProcedure().start();
-                log.warn("split vote detected, start a new re-election procedure");
-            }
-            log.info("is LEADER or has other LEADER, exit without any further action");
+            log.info("restart to solve split vote OR is LEADER or has other LEADER, exit without any further action");
         }
     }
 
+    /* if it remains CANDIDATE, then there'a a split vote */
     private boolean isSplitVote() {
-        return (!isLeaderNow()) && (!hasOtherLeaderNow());
-    }
-
-    /* recheck */
-    private boolean isLeaderNow() {
-        synchronized (NodeStatus.class) {
-            if (NodeStatus.voteCnt() >= NodeStatus.majorityNodeCnt()) {
-                log.info("nice, i'm leader now with voteCnt {}", NodeStatus.voteCnt());
-                synchronized (NodeStatus.class) {
-                    NodeStatus.setRoleTo(Role.LEADER);
-                    NodeStatus.heartbeatThread().start();
-                    NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
-                }
-                return true;
-            }
-            return false;
-        }
-    }
-
-    /* check if the candidate step down during the campaign */
-    private boolean hasOtherLeaderNow() {
-        return Role.FOLLOWER.equals(NodeStatus.role());
+        return NodeStatus.role().equals(Role.CANDIDATE);
     }
 }

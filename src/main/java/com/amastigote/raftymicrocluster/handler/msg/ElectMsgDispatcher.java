@@ -6,6 +6,7 @@ import com.amastigote.raftymicrocluster.procedure.VoteForCandidateProcedure;
 import com.amastigote.raftymicrocluster.protocol.ElectMsgType;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.Role;
+import com.amastigote.raftymicrocluster.thread.HeartBeatThread;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -58,6 +59,7 @@ public final class ElectMsgDispatcher {
             if (NodeStatus.role().equals(Role.FOLLOWER) && newerTerm) {
                 new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
 
+                /* the follower should remain its state as long as it receives valid RPCs from leader OR **candidate** */
                 heartbeatWatchdogResetInvoker.apply(true);
             }
             return;
@@ -67,6 +69,17 @@ public final class ElectMsgDispatcher {
             if (NodeStatus.role().equals(Role.CANDIDATE)) {
                 int voteCnt = NodeStatus.incrVoteCnt();
                 if (voteCnt >= NodeStatus.majorityNodeCnt()) {
+                    log.info("nice, i'm leader now with voteCnt {}", voteCnt);
+                    synchronized (NodeStatus.class) {
+                        NodeStatus.setRoleTo(Role.LEADER);
+
+                        if (!NodeStatus.heartbeatThread().isAlive()) {
+                            NodeStatus.setHeartbeatThread(new HeartBeatThread());
+                            NodeStatus.heartbeatThread().start();
+                        }
+
+                        NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
+                    }
                     NodeStatus.voteCntTimeoutDetectThread().interrupt();
                 }
             }

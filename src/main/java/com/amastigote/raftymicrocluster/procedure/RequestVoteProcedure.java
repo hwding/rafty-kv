@@ -1,7 +1,7 @@
 package com.amastigote.raftymicrocluster.procedure;
 
-import com.amastigote.raftymicrocluster.CommunicateToOthersParamPack;
 import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.RemoteCommunicationParamPack;
 import com.amastigote.raftymicrocluster.protocol.ElectMsgType;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
@@ -22,17 +22,11 @@ import java.io.ObjectOutputStream;
 @Slf4j(topic = "[REQUEST VOTE PROC]")
 public class RequestVoteProcedure extends Thread {
 
-    private CommunicateToOthersParamPack paramPack;
-
-    public RequestVoteProcedure() {
-        this.paramPack = NodeStatus.paramPack();
-    }
-
     @Override
     public void run() {
         log.info("reelection thread start...");
 
-        for (int i = 0; i < this.paramPack.getDesChns().length; i++) {
+        NodeStatus.paramPack().getCommunicationTargets().parallelStream().forEach(t -> {
             GeneralMsg msg = new GeneralMsg();
             msg.setMsgType(MsgType.ELECT);
             msg.setData(ElectMsgType.VOTE_REQ);
@@ -45,19 +39,18 @@ public class RequestVoteProcedure extends Thread {
                 outputStream.writeObject(msg);
                 byte[] objBuf = byteArrayOutputStream.toByteArray();
                 ByteBuf content = Unpooled.copiedBuffer(objBuf);
-                DatagramPacket packet = new DatagramPacket(content, this.paramPack.getDesAddrs()[i], this.paramPack.getSenderAddr());
+                DatagramPacket packet = new DatagramPacket(content, t.getSocketAddress(), RemoteCommunicationParamPack.senderAddr);
 
-                int finalI = i;
-                this.paramPack.getDesChns()[i].writeAndFlush(packet).addListener(future -> {
+                t.getChannel().writeAndFlush(packet).addListener(future -> {
                     if (!future.isSuccess()) {
-                        log.info("failed to req vote to " + this.paramPack.getDesPortsNum()[finalI]);
+                        log.info("failed to req vote to {}", t.getPort());
                         return;
                     }
-                    log.info("vote req sent to " + this.paramPack.getDesPortsNum()[finalI]);
+                    log.info("vote req sent to {}", t.getPort());
                 });
             } catch (IOException e) {
                 log.error("error when sending datagram", e);
             }
-        }
+        });
     }
 }

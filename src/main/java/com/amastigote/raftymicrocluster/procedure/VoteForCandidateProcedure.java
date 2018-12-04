@@ -1,6 +1,7 @@
 package com.amastigote.raftymicrocluster.procedure;
 
 import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.RemoteCommunicationParamPack;
 import com.amastigote.raftymicrocluster.protocol.ElectMsgType;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.Optional;
 
 /**
  * @author: hwding
@@ -47,22 +49,24 @@ public class VoteForCandidateProcedure extends Thread {
                 return;
             }
 
+            Optional<RemoteCommunicationParamPack.RemoteTarget> targetOptional = NodeStatus
+                    .paramPack()
+                    .getCommunicationTargets()
+                    .parallelStream()
+                    .filter(target -> candidatePort == target.getPort())
+                    .findFirst();
+
+            if (!targetOptional.isPresent()) {
+                log.warn("no such target port {} in remote target list, ignore vote req", candidatePort);
+                return;
+            }
+
+            RemoteCommunicationParamPack.RemoteTarget target = targetOptional.get();
+
             GeneralMsg msg = new GeneralMsg();
             msg.setMsgType(MsgType.ELECT);
             msg.setData(ElectMsgType.VOTE_RES);
             msg.setTerm(candidateTerm);
-
-            int desIdx = -1;
-            for (int i = 0; i < NodeStatus.paramPack().getDesPortsNum().length; i++) {
-                if (candidatePort == NodeStatus.paramPack().getDesPortsNum()[i]) {
-                    desIdx = i;
-                    break;
-                }
-            }
-            if (desIdx == -1) {
-                log.warn("no such node {}, give up voting", candidatePort);
-                return;
-            }
 
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             ObjectOutputStream outputStream;
@@ -71,16 +75,15 @@ public class VoteForCandidateProcedure extends Thread {
                 outputStream.writeObject(msg);
                 byte[] objBuf = byteArrayOutputStream.toByteArray();
                 ByteBuf content = Unpooled.copiedBuffer(objBuf);
-                DatagramPacket packet = new DatagramPacket(content, NodeStatus.paramPack().getDesAddrs()[desIdx], NodeStatus.paramPack().getSenderAddr());
+                DatagramPacket packet = new DatagramPacket(content, target.getSocketAddress(), RemoteCommunicationParamPack.senderAddr);
 
-                int finalDesIdx = desIdx;
-                NodeStatus.paramPack().getDesChns()[desIdx].writeAndFlush(packet).addListener(future -> {
+                target.getChannel().writeAndFlush(packet).addListener(future -> {
                     if (!future.isSuccess()) {
-                        log.info("failed to vote for " + NodeStatus.paramPack().getDesPortsNum()[finalDesIdx]);
+                        log.info("failed to vote for {}", target.getPort());
                         return;
                     }
                     boolean voted = NodeStatus.voteFor(candidatePort);
-                    log.info("voted for {}, votedFor update result {}", NodeStatus.paramPack().getDesPortsNum()[finalDesIdx], voted);
+                    log.info("voted for {}, votedFor update result {}", target.getPort(), voted);
                 });
 
             } catch (IOException e) {
