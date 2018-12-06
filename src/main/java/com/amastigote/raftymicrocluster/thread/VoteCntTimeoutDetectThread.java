@@ -30,7 +30,7 @@ public class VoteCntTimeoutDetectThread extends Thread {
                 }
             }
         } catch (InterruptedException e) {
-            log.info("restart to solve split vote OR is LEADER or has other LEADER, exit without any further action");
+            log.info("is LEADER OR has other LEADER OR restart to solve split vote OR, exit without any further action");
         }
     }
 

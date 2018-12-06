@@ -50,7 +50,8 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
             ElectMsgDispatcher.dispatch(msg, newerTerm, this.heartbeatWatchdogResetInvoker);
         }
 
-        if (MsgType.HEARTBEAT.equals(msg.getMsgType())) {
+        /* ignore any lower term heartbeat, mostly consider for the CANDIDATE situation */
+        if (newerTerm && MsgType.HEARTBEAT.equals(msg.getMsgType())) {
             HeartbeatMsgDispatcher.dispatch(this.heartbeatWatchdogResetInvoker);
         }
     }
@@ -63,6 +64,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
                 if (!NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
                     NodeStatus.setHeartbeatRecvTimeoutDetectThread(new HeartBeatRecvTimeoutDetectThread());
                     NodeStatus.heartbeatRecvTimeoutDetectThread().start();
+                    log.info("heartbeatRecvTimeoutDetectThread reset and start");
                 } else if (needResetTimerIfAlreadyActive) {
                     NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
                 }
@@ -76,9 +78,11 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
 
         @Override
         public Boolean apply(Integer term) {
-            if (NodeStatus.currentTerm() < term) {
+            if (NodeStatus.currentTerm() <= term) {
                 synchronized (NodeStatus.class) {
-                    if (NodeStatus.currentTerm() < term) {
+                    if (NodeStatus.currentTerm() <= term) {
+                        log.info("equal or newer term detected");
+
                         NodeStatus.reInitTerm(term);
                         NodeStatus.resetVotedFor();
                         return true;

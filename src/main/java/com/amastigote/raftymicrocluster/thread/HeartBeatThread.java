@@ -59,7 +59,8 @@ public class HeartBeatThread extends Thread {
                         });
                 Thread.sleep(TimeSpan.HEARTBEAT_SEND_INTERVAL);
             } catch (InterruptedException e) {
-                log.info("heartbeat thread has been stopped");
+                log.info("heartbeat thread has been stopped, exit");
+                break;
             }
         }
     }

@@ -34,7 +34,6 @@ public class Bootstrap {
         EventLoopGroup loopGroup = new NioEventLoopGroup();
         DoNothingInboundDatagramHandler doNothingInboundDatagramHandler = new DoNothingInboundDatagramHandler();
 
-        /* init leader */
         String[] desPorts = new String[args.length - 1];
         System.arraycopy(args, 1, desPorts, 0, args.length - 1);
 

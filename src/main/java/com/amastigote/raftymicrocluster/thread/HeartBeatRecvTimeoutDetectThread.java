@@ -22,7 +22,7 @@ public class HeartBeatRecvTimeoutDetectThread extends Thread {
 
     @Override
     public void run() {
-        while (!super.isInterrupted()) {
+        while (!this.isInterrupted()) {
             try {
                 synchronized (this) {
                     super.wait(heartBeatTimeout);
@@ -45,6 +45,7 @@ public class HeartBeatRecvTimeoutDetectThread extends Thread {
 
                     /* if interrupted due to role changing, stop thread */
                     if (!NodeStatus.role().equals(Role.FOLLOWER)) {
+                        log.info("HB recv in NON-FOLLOWER state, exit");
                         break;
                     }
 

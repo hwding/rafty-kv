@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j(topic = "[HANDLER HEARTBEAT MSG]")
 public class HeartbeatMsgDispatcher {
     public static void dispatch(GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker) {
+        log.info("HeartbeatMsgDispatcher dispatching...");
         if (NodeStatus.role().equals(Role.LEADER)) {
             log.warn("other leader's heartbeat recv, step down");
 

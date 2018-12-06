@@ -17,7 +17,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j(topic = "[DISPATCHER ELECT-MSG]")
 public final class ElectMsgDispatcher {
 
-    public static void dispatch(GeneralMsg msg, boolean newerTerm, GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker) {
+    public static void dispatch(
+            GeneralMsg msg,
+            boolean newerTerm,
+            GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker
+    ) {
+        log.info("ElectMsgDispatcher dispatching...");
         MsgType.ElectMsgType electMsgType = (MsgType.ElectMsgType) msg.getData();
 
         if (electMsgType.equals(MsgType.ElectMsgType.VOTE_REQ)) {
@@ -31,7 +36,7 @@ public final class ElectMsgDispatcher {
 
                     heartbeatWatchdogResetInvoker.apply(false);
 
-                    log.info("vote for newer term candidate and step down");
+                    log.info("step down from LEADER and vote for newer term candidate");
                 }
                 new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
                 return;
@@ -40,27 +45,31 @@ public final class ElectMsgDispatcher {
             if (NodeStatus.role().equals(Role.CANDIDATE)) {
                 if (newerTerm) {
 
-                    /* step down and vote for this candidate */
+                    /* step down and vote for this newer candidate */
                     synchronized (NodeStatus.class) {
                         NodeStatus.setRoleTo(Role.FOLLOWER);
-                        NodeStatus.heartbeatThread().interrupt();
+
+                        /* end campaign waiting in advance */
+                        NodeStatus.voteCntTimeoutDetectThread().interrupt();
 
                         heartbeatWatchdogResetInvoker.apply(false);
                     }
                     new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
 
-                    log.info("vote for newer term candidate and step down");
+                    log.info("step down from CANDIDATE and vote for newer term candidate");
                     return;
                 }
+
                 log.info("competitor's same term vote req, do nothing");
                 return;
             }
 
             if (NodeStatus.role().equals(Role.FOLLOWER) && newerTerm) {
-                new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
 
                 /* the follower should remain its state as long as it receives valid RPCs from leader OR **candidate** */
                 heartbeatWatchdogResetInvoker.apply(true);
+
+                new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
             }
             return;
         }
@@ -79,8 +88,8 @@ public final class ElectMsgDispatcher {
                         }
 
                         NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
+                        NodeStatus.voteCntTimeoutDetectThread().interrupt();
                     }
-                    NodeStatus.voteCntTimeoutDetectThread().interrupt();
                 }
                 return;
             }
