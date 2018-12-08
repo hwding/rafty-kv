@@ -6,7 +6,6 @@ import com.amastigote.raftymicrocluster.procedure.VoteForCandidateProcedure;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
 import com.amastigote.raftymicrocluster.protocol.Role;
-import com.amastigote.raftymicrocluster.thread.HeartBeatThread;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -82,10 +81,7 @@ public final class ElectMsgDispatcher {
                     synchronized (NodeStatus.class) {
                         NodeStatus.setRoleTo(Role.LEADER);
 
-                        if (!NodeStatus.heartbeatThread().isAlive()) {
-                            NodeStatus.setHeartbeatThread(new HeartBeatThread());
-                            NodeStatus.heartbeatThread().start();
-                        }
+                        NodeStatus.resetHeartbeatThread(true);
 
                         NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
                         NodeStatus.voteCntTimeoutDetectThread().interrupt();

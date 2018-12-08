@@ -5,7 +5,6 @@ import com.amastigote.raftymicrocluster.handler.msg.ElectMsgDispatcher;
 import com.amastigote.raftymicrocluster.handler.msg.HeartbeatMsgDispatcher;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
-import com.amastigote.raftymicrocluster.thread.HeartBeatRecvTimeoutDetectThread;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -62,8 +61,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
         public Void apply(Boolean needResetTimerIfAlreadyActive) {
             synchronized (NodeStatus.class) {
                 if (!NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                    NodeStatus.setHeartbeatRecvTimeoutDetectThread(new HeartBeatRecvTimeoutDetectThread());
-                    NodeStatus.heartbeatRecvTimeoutDetectThread().start();
+                    NodeStatus.resetHeartbeatRecvTimeoutDetectThread(true);
                     log.info("heartbeatRecvTimeoutDetectThread reset and start");
                 } else if (needResetTimerIfAlreadyActive) {
                     NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();

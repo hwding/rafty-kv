@@ -1,8 +1,13 @@
 package com.amastigote.raftymicrocluster;
 
 import com.amastigote.raftymicrocluster.protocol.Role;
+import com.amastigote.raftymicrocluster.thread.HeartBeatRecvTimeoutDetectThread;
+import com.amastigote.raftymicrocluster.thread.HeartBeatThread;
+import com.amastigote.raftymicrocluster.thread.VoteCntTimeoutDetectThread;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -23,7 +28,6 @@ public final class NodeStatus {
     private static Thread heartbeatRecvTimeoutDetectThread;
 
     private static AtomicInteger currentTerm = new AtomicInteger(0);
-//    private static AtomicInteger votedTerm = new AtomicInteger(-1);
 
     /* refer to com.amastigote.raftymicrocluster.protocol.GeneralMsg.responseToPort, voted for candidateId */
     private static AtomicInteger votedFor = new AtomicInteger(0);
@@ -66,8 +70,40 @@ public final class NodeStatus {
         return voteCntTimeoutDetectThread;
     }
 
-    public static void setVoteCntTimeoutDetectThread(Thread voteCntTimeoutDetectThread) {
-        NodeStatus.voteCntTimeoutDetectThread = voteCntTimeoutDetectThread;
+    public static synchronized void resetVoteCntTimeoutDetectThread(boolean fire) {
+        if (Objects.nonNull(voteCntTimeoutDetectThread) && voteCntTimeoutDetectThread.isAlive()) {
+            voteCntTimeoutDetectThread.interrupt();
+        }
+
+        voteCntTimeoutDetectThread = new VoteCntTimeoutDetectThread();
+
+        if (fire) {
+            voteCntTimeoutDetectThread.start();
+        }
+    }
+
+    public static synchronized void resetHeartbeatThread(boolean fire) {
+        if (Objects.nonNull(heartbeatThread) && heartbeatThread.isAlive()) {
+            heartbeatThread.interrupt();
+        }
+
+        heartbeatThread = new HeartBeatThread();
+
+        if (fire) {
+            heartbeatThread.start();
+        }
+    }
+
+    public static synchronized void resetHeartbeatRecvTimeoutDetectThread(boolean fire) {
+        if (Objects.nonNull(heartbeatRecvTimeoutDetectThread) && heartbeatRecvTimeoutDetectThread.isAlive()) {
+            heartbeatRecvTimeoutDetectThread.interrupt();
+        }
+
+        heartbeatRecvTimeoutDetectThread = new HeartBeatRecvTimeoutDetectThread();
+
+        if (fire) {
+            heartbeatRecvTimeoutDetectThread.start();
+        }
     }
 
     public static synchronized void setRoleTo(Role newRole) {
@@ -124,24 +160,13 @@ public final class NodeStatus {
         boolean set = false;
         while (!set) {
             int votedFor = NodeStatus.votedFor.get();
-
             if (votedFor != 0) {
                 log.warn("already voted for {} in current term, give up", votedFor);
                 return false;
             }
-
             set = NodeStatus.votedFor.compareAndSet(0, candidateId);
         }
-
         return true;
-    }
-
-    public static void setHeartbeatThread(Thread thread) {
-        NodeStatus.heartbeatThread = thread;
-    }
-
-    public static void setHeartbeatRecvTimeoutDetectThread(Thread thread) {
-        NodeStatus.heartbeatRecvTimeoutDetectThread = thread;
     }
 
     public static Thread heartbeatRecvTimeoutDetectThread() {

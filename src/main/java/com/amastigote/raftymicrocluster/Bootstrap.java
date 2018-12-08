@@ -2,9 +2,6 @@ package com.amastigote.raftymicrocluster;
 
 import com.amastigote.raftymicrocluster.handler.DoNothingInboundDatagramHandler;
 import com.amastigote.raftymicrocluster.handler.GeneralInboundDatagramHandler;
-import com.amastigote.raftymicrocluster.thread.HeartBeatRecvTimeoutDetectThread;
-import com.amastigote.raftymicrocluster.thread.HeartBeatThread;
-import com.amastigote.raftymicrocluster.thread.VoteCntTimeoutDetectThread;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -67,23 +64,18 @@ public class Bootstrap {
         RemoteCommunicationParamPack paramPack = new RemoteCommunicationParamPack(communicationTargets);
         NodeStatus.setParamPack(paramPack);
 
-        Thread heartBeatRecvTimeoutDetectThread = new HeartBeatRecvTimeoutDetectThread();
-        Thread voteCntTimeoutDetectThread = new VoteCntTimeoutDetectThread();
-        Thread heartBeatThread = new HeartBeatThread();
-
-        NodeStatus.setHeartbeatThread(heartBeatThread);
-        NodeStatus.setVoteCntTimeoutDetectThread(voteCntTimeoutDetectThread);
-        NodeStatus.setHeartbeatRecvTimeoutDetectThread(heartBeatRecvTimeoutDetectThread);
+        NodeStatus.resetHeartbeatThread(false);
+        NodeStatus.resetVoteCntTimeoutDetectThread(false);
 
         GeneralInboundDatagramHandler generalInboundDatagramHandler = new GeneralInboundDatagramHandler();
-
-        NodeStatus.heartbeatRecvTimeoutDetectThread().start();
 
         new io.netty.bootstrap.Bootstrap()
                 .group(loopGroup)
                 .channel(NioDatagramChannel.class)
                 .handler(generalInboundDatagramHandler)
                 .bind(NodeStatus.nodePort());
+
+        NodeStatus.resetHeartbeatRecvTimeoutDetectThread(true);
 
         log.info("init ok");
     }

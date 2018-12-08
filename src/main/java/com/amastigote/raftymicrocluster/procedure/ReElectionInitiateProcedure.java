@@ -2,7 +2,6 @@ package com.amastigote.raftymicrocluster.procedure;
 
 import com.amastigote.raftymicrocluster.NodeStatus;
 import com.amastigote.raftymicrocluster.protocol.Role;
-import com.amastigote.raftymicrocluster.thread.VoteCntTimeoutDetectThread;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -34,12 +33,7 @@ public class ReElectionInitiateProcedure extends Thread {
 
         /* reset concerning timers */
         synchronized (NodeStatus.class) {
-            if (NodeStatus.voteCntTimeoutDetectThread().isAlive()) {
-                NodeStatus.voteCntTimeoutDetectThread().interrupt();
-            }
-
-            NodeStatus.setVoteCntTimeoutDetectThread(new VoteCntTimeoutDetectThread());
-            NodeStatus.voteCntTimeoutDetectThread().start();
+            NodeStatus.resetVoteCntTimeoutDetectThread(true);
 
             if (NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
                 NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
