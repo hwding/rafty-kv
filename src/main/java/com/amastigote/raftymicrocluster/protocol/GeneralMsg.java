@@ -16,7 +16,7 @@ import java.io.Serializable;
 @ToString
 public class GeneralMsg implements Serializable {
     private MsgType msgType;
-    private Object data;
+    private MsgType.ElectMsgType electMsgType;
     private Integer term;
 
     /* performs as the serverId in this case */

@@ -22,7 +22,7 @@ public final class ElectMsgDispatcher {
             GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker
     ) {
         log.info("ElectMsgDispatcher dispatching...");
-        MsgType.ElectMsgType electMsgType = (MsgType.ElectMsgType) msg.getData();
+        MsgType.ElectMsgType electMsgType = msg.getElectMsgType();
 
         if (electMsgType.equals(MsgType.ElectMsgType.VOTE_REQ)) {
             NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
