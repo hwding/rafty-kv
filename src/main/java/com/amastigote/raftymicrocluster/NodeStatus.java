@@ -62,8 +62,12 @@ public final class NodeStatus {
         return currentTerm.get();
     }
 
-    public static void reInitTerm(int term) {
-        currentTerm.set(term);
+    public static void updateTerm(int newTerm) {
+        int oldTerm = currentTerm.get();
+        while (oldTerm < newTerm) {
+            currentTerm.compareAndSet(oldTerm, newTerm);
+            oldTerm = currentTerm.get();
+        }
     }
 
     public static Thread voteCntTimeoutDetectThread() {

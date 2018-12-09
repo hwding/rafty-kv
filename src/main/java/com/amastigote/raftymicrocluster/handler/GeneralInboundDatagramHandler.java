@@ -81,7 +81,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
                     if (NodeStatus.currentTerm() <= term) {
                         log.info("equal or newer term detected");
 
-                        NodeStatus.reInitTerm(term);
+                        NodeStatus.updateTerm(term);
                         NodeStatus.resetVotedFor();
                         return true;
                     }
