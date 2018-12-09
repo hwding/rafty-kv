@@ -25,7 +25,7 @@ public final class ElectMsgDispatcher {
         MsgType.ElectMsgType electMsgType = msg.getElectMsgType();
 
         if (electMsgType.equals(MsgType.ElectMsgType.VOTE_REQ)) {
-            NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
+            NodeStatus.heartBeatWatchdogThread().interrupt();
             if (NodeStatus.role().equals(Role.LEADER)) {
 
                 /* step down and vote for this candidate */
@@ -49,7 +49,7 @@ public final class ElectMsgDispatcher {
                         NodeStatus.setRoleTo(Role.FOLLOWER);
 
                         /* end campaign waiting in advance */
-                        NodeStatus.voteCntTimeoutDetectThread().interrupt();
+                        NodeStatus.voteResWatchdogThread().interrupt();
 
                         heartbeatWatchdogResetInvoker.apply(false);
                     }
@@ -83,8 +83,8 @@ public final class ElectMsgDispatcher {
 
                         NodeStatus.resetHeartbeatThread(true);
 
-                        NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
-                        NodeStatus.voteCntTimeoutDetectThread().interrupt();
+                        NodeStatus.heartBeatWatchdogThread().interrupt();
+                        NodeStatus.voteResWatchdogThread().interrupt();
                     }
                 }
                 return;

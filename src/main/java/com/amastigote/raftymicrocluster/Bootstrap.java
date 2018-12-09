@@ -26,6 +26,7 @@ public class Bootstrap {
 
     public static void main(String[] args) {
         log.info("init...");
+
         Random random = new Random(System.nanoTime());
         NodeStatus.init("Node-" + Integer.valueOf(args[0]), Integer.valueOf(args[0]), args.length);
         EventLoopGroup loopGroup = new NioEventLoopGroup();
@@ -65,7 +66,7 @@ public class Bootstrap {
         NodeStatus.setParamPack(paramPack);
 
         NodeStatus.resetHeartbeatThread(false);
-        NodeStatus.resetVoteCntTimeoutDetectThread(false);
+        NodeStatus.resetVoteResWatchdogThread(false);
 
         GeneralInboundDatagramHandler generalInboundDatagramHandler = new GeneralInboundDatagramHandler();
 
@@ -75,7 +76,7 @@ public class Bootstrap {
                 .handler(generalInboundDatagramHandler)
                 .bind(NodeStatus.nodePort());
 
-        NodeStatus.resetHeartbeatRecvTimeoutDetectThread(true);
+        NodeStatus.resetHeartBeatWatchdogThread(true);
 
         log.info("init ok");
     }

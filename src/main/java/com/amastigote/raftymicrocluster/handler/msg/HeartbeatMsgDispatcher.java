@@ -32,8 +32,8 @@ public class HeartbeatMsgDispatcher {
             synchronized (NodeStatus.class) {
                 NodeStatus.setRoleTo(Role.FOLLOWER);
             }
-            if (NodeStatus.voteCntTimeoutDetectThread().isAlive()) {
-                NodeStatus.voteCntTimeoutDetectThread().interrupt();
+            if (NodeStatus.voteResWatchdogThread().isAlive()) {
+                NodeStatus.voteResWatchdogThread().interrupt();
             }
 
             heartbeatWatchdogResetInvoker.apply(false);

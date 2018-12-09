@@ -13,8 +13,8 @@ import java.util.Random;
  * @date: 2018/11/29
  */
 @SuppressWarnings("JavaDoc")
-@Slf4j(topic = "[HEARTBEAT TIMEOUT DETC THREAD]")
-public class HeartBeatRecvTimeoutDetectThread extends Thread {
+@Slf4j(topic = "[HEARTBEAT WATCHDOG THREAD]")
+public class HeartBeatWatchdogThread extends Thread {
     private final static long heartBeatTimeout =
             new Random(System.nanoTime()).nextInt(Math.toIntExact(TimeSpan.HEARTBEAT_TIMEOUT_ADDITIONAL_RANGE))
                     +
@@ -28,29 +28,26 @@ public class HeartBeatRecvTimeoutDetectThread extends Thread {
                     super.wait(heartBeatTimeout);
                 }
 
-                log.warn("HB not recv in {} ms", heartBeatTimeout);
-                if (NodeStatus.role().equals(Role.CANDIDATE)) {
-                    continue;
+                /* if no longer follower after awake */
+                if (!NodeStatus.role().equals(Role.FOLLOWER)) {
+                    log.info("no longer FOLLOWER after awake, exit");
+                    break;
                 }
-                if (NodeStatus.role().equals(Role.LEADER)) {
-                    synchronized (NodeStatus.class) {
-                        NodeStatus.heartbeatThread().interrupt();
-                        NodeStatus.setRoleTo(Role.FOLLOWER);
-                        NodeStatus.heartbeatRecvTimeoutDetectThread().start();
-                    }
-                }
+
+                /* else still FOLLOWER */
+                log.warn("heartbeat not recv in {} ms", heartBeatTimeout);
                 new ReElectionInitiateProcedure().start();
             } catch (InterruptedException e) {
                 synchronized (NodeStatus.class) {
 
                     /* if interrupted due to role changing, stop thread */
                     if (!NodeStatus.role().equals(Role.FOLLOWER)) {
-                        log.info("HB recv in NON-FOLLOWER state, exit");
+                        log.info("heartbeat watchdog interrupted in NON-FOLLOWER state, exit");
                         break;
                     }
 
                     /* else continuing timing */
-                    log.info("HB recv, reset timer");
+                    log.info("heartbeat recv, reset timer");
                 }
             }
         }

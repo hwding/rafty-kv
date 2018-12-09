@@ -19,6 +19,18 @@ public class GeneralMsg implements Serializable {
     private MsgType.ElectMsgType electMsgType;
     private Integer term;
 
-    /* performs as the serverId in this case */
+    /* servers as leaderId in this case */
     private Integer responseToPort;
+
+    /* >> AppendEntryMsg only */
+    private Integer prevLogIdx;
+    private Integer prevLogTerm;
+    private LogEntry[] entries;
+    private Integer committedIdx;
+    /* << AppendEntryMsg only */
+
+    /* >> RequestVoteMsg only */
+    private Integer lastLogIdx;
+    private Integer lastLogTerm;
+    /* << RequestVoteMsg only */
 }

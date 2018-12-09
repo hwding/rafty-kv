@@ -1,9 +1,10 @@
 package com.amastigote.raftymicrocluster;
 
+import com.amastigote.raftymicrocluster.protocol.LogEntry;
 import com.amastigote.raftymicrocluster.protocol.Role;
-import com.amastigote.raftymicrocluster.thread.HeartBeatRecvTimeoutDetectThread;
 import com.amastigote.raftymicrocluster.thread.HeartBeatThread;
-import com.amastigote.raftymicrocluster.thread.VoteCntTimeoutDetectThread;
+import com.amastigote.raftymicrocluster.thread.HeartBeatWatchdogThread;
+import com.amastigote.raftymicrocluster.thread.VoteResWatchdogThread;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -21,20 +22,31 @@ public final class NodeStatus {
     private static String nodeName;
     private static int nodePort;
     private static Role role = Role.FOLLOWER;
-    private static AtomicInteger voteCnt = new AtomicInteger();
+
+    private static int totalNodeCnt;
 
     private static Thread heartbeatThread;
-    private static Thread voteCntTimeoutDetectThread;
-    private static Thread heartbeatRecvTimeoutDetectThread;
+    private static Thread voteResWatchdogThread;
+    private static Thread heartBeatWatchdogThread;
 
     private static AtomicInteger currentTerm = new AtomicInteger(0);
 
     /* refer to com.amastigote.raftymicrocluster.protocol.GeneralMsg.responseToPort, voted for candidateId */
     private static AtomicInteger votedFor = new AtomicInteger(0);
 
-    private static int totalNodeCnt;
+    private static AtomicInteger voteCnt = new AtomicInteger();
 
     private static RemoteCommunicationParamPack paramPack;
+
+    /* >> LEADER only */
+    /* not thread-safe, sync before altering data */
+    private static HashMap<Integer, Integer> nextIdx;
+    private static HashMap<Integer, Integer> matchIdx;
+    /* << LEADER only */
+
+    private static LogEntry[] logs;
+    private static int committedIdx;
+    private static int appliedIdx;
 
     synchronized static void init(String nodeName, int nodePort, int totalNodeCnt) {
         NodeStatus.nodeName = nodeName;
@@ -51,7 +63,7 @@ public final class NodeStatus {
     }
 
     public static int nodePort() {
-        return NodeStatus.nodePort;
+        return nodePort;
     }
 
     public static int incrTerm() {
@@ -70,19 +82,15 @@ public final class NodeStatus {
         }
     }
 
-    public static Thread voteCntTimeoutDetectThread() {
-        return voteCntTimeoutDetectThread;
-    }
-
-    public static synchronized void resetVoteCntTimeoutDetectThread(boolean fire) {
-        if (Objects.nonNull(voteCntTimeoutDetectThread) && voteCntTimeoutDetectThread.isAlive()) {
-            voteCntTimeoutDetectThread.interrupt();
+    public static synchronized void resetVoteResWatchdogThread(boolean fire) {
+        if (Objects.nonNull(voteResWatchdogThread) && voteResWatchdogThread.isAlive()) {
+            voteResWatchdogThread.interrupt();
         }
 
-        voteCntTimeoutDetectThread = new VoteCntTimeoutDetectThread();
+        voteResWatchdogThread = new VoteResWatchdogThread();
 
         if (fire) {
-            voteCntTimeoutDetectThread.start();
+            voteResWatchdogThread.start();
         }
     }
 
@@ -98,15 +106,15 @@ public final class NodeStatus {
         }
     }
 
-    public static synchronized void resetHeartbeatRecvTimeoutDetectThread(boolean fire) {
-        if (Objects.nonNull(heartbeatRecvTimeoutDetectThread) && heartbeatRecvTimeoutDetectThread.isAlive()) {
-            heartbeatRecvTimeoutDetectThread.interrupt();
+    public static synchronized void resetHeartBeatWatchdogThread(boolean fire) {
+        if (Objects.nonNull(heartBeatWatchdogThread) && heartBeatWatchdogThread.isAlive()) {
+            heartBeatWatchdogThread.interrupt();
         }
 
-        heartbeatRecvTimeoutDetectThread = new HeartBeatRecvTimeoutDetectThread();
+        heartBeatWatchdogThread = new HeartBeatWatchdogThread();
 
         if (fire) {
-            heartbeatRecvTimeoutDetectThread.start();
+            heartBeatWatchdogThread.start();
         }
     }
 
@@ -117,6 +125,7 @@ public final class NodeStatus {
 
         if (role.equals(newRole)) {
             log.warn("unnecessary role transfer: already {}", role.toString());
+            return;
         }
 
         if (role.equals(Role.FOLLOWER) && newRole.equals(Role.LEADER)) {
@@ -133,7 +142,7 @@ public final class NodeStatus {
     }
 
     public static RemoteCommunicationParamPack paramPack() {
-        return NodeStatus.paramPack;
+        return paramPack;
     }
 
     public static int incrVoteCnt() {
@@ -145,7 +154,7 @@ public final class NodeStatus {
     }
 
     public static void resetVotedFor() {
-        NodeStatus.votedFor.set(0);
+        votedFor.set(0);
     }
 
     public static int voteCnt() {
@@ -153,31 +162,35 @@ public final class NodeStatus {
     }
 
     public static int votedFor() {
-        return NodeStatus.votedFor.get();
+        return votedFor.get();
     }
 
     public static Role role() {
-        return NodeStatus.role;
+        return role;
     }
 
     public static boolean voteFor(Integer candidateId) {
         boolean set = false;
         while (!set) {
-            int votedFor = NodeStatus.votedFor.get();
-            if (votedFor != 0) {
-                log.warn("already voted for {} in current term, give up", votedFor);
+            int votedForPort = votedFor.get();
+            if (votedForPort != 0) {
+                log.warn("already voted for {} in current term, give up", votedForPort);
                 return false;
             }
-            set = NodeStatus.votedFor.compareAndSet(0, candidateId);
+            set = votedFor.compareAndSet(0, candidateId);
         }
         return true;
     }
 
-    public static Thread heartbeatRecvTimeoutDetectThread() {
-        return NodeStatus.heartbeatRecvTimeoutDetectThread;
+    public static Thread heartBeatWatchdogThread() {
+        return heartBeatWatchdogThread;
+    }
+
+    public static Thread voteResWatchdogThread() {
+        return voteResWatchdogThread;
     }
 
     public static Thread heartbeatThread() {
-        return NodeStatus.heartbeatThread;
+        return heartbeatThread;
     }
 }

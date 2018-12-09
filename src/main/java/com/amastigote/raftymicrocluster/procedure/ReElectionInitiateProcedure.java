@@ -33,11 +33,8 @@ public class ReElectionInitiateProcedure extends Thread {
 
         /* reset concerning timers */
         synchronized (NodeStatus.class) {
-            NodeStatus.resetVoteCntTimeoutDetectThread(true);
-
-            if (NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
-            }
+            NodeStatus.resetVoteResWatchdogThread(true);
+            NodeStatus.resetHeartBeatWatchdogThread(false);
         }
     }
 }

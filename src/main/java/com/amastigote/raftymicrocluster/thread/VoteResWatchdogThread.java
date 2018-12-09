@@ -13,8 +13,8 @@ import java.util.Random;
  * @date: 2018/11/29
  */
 @SuppressWarnings("JavaDoc")
-@Slf4j(topic = "[VOTE CNT TIMEOUT DETC THREAD]")
-public class VoteCntTimeoutDetectThread extends Thread {
+@Slf4j(topic = "[VOTE RES WATCHDOG THREAD]")
+public class VoteResWatchdogThread extends Thread {
     private final static long electionTimeout = new Random(System.nanoTime()).nextInt(Math.toIntExact(TimeSpan.ELECTION_TIMEOUT_ADDITIONAL_RANGE))
             +
             TimeSpan.ELECTION_TIMEOUT_BASE;

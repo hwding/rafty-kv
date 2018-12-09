@@ -60,11 +60,11 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
         @Override
         public Void apply(Boolean needResetTimerIfAlreadyActive) {
             synchronized (NodeStatus.class) {
-                if (!NodeStatus.heartbeatRecvTimeoutDetectThread().isAlive()) {
-                    NodeStatus.resetHeartbeatRecvTimeoutDetectThread(true);
+                if (!NodeStatus.heartBeatWatchdogThread().isAlive()) {
+                    NodeStatus.resetHeartBeatWatchdogThread(true);
                     log.info("heartbeatRecvTimeoutDetectThread reset and start");
                 } else if (needResetTimerIfAlreadyActive) {
-                    NodeStatus.heartbeatRecvTimeoutDetectThread().interrupt();
+                    NodeStatus.heartBeatWatchdogThread().interrupt();
                 }
             }
 
