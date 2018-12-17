@@ -81,8 +81,7 @@ public class VoteForCandidateProcedure extends Thread {
                         log.info("failed to vote for {}", target.getPort());
                         return;
                     }
-                    boolean voted = NodeStatus.voteFor(candidatePort);
-                    log.info("voted for {}, votedFor update result {}", target.getPort(), voted);
+                    NodeStatus.voteFor(candidatePort);
                 });
 
             } catch (IOException e) {

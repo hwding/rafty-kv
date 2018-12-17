@@ -28,7 +28,7 @@ public class Bootstrap {
         log.info("init...");
 
         Random random = new Random(System.nanoTime());
-        NodeStatus.init("Node-" + Integer.valueOf(args[0]), Integer.valueOf(args[0]), args.length);
+        NodeStatus.init(Integer.valueOf(args[0]), args.length);
         EventLoopGroup loopGroup = new NioEventLoopGroup(1);
         DoNothingInboundDatagramHandler doNothingInboundDatagramHandler = new DoNothingInboundDatagramHandler();
 
@@ -42,12 +42,13 @@ public class Bootstrap {
                 .mapToInt(Integer::valueOf)
                 .mapToObj(port -> {
                     while (true) {
+                        int randPort = 8100 + random.nextInt(100);
                         try {
                             Channel remoteChn = new io.netty.bootstrap.Bootstrap()
                                     .group(loopGroup)
                                     .channel(NioDatagramChannel.class)
                                     .handler(doNothingInboundDatagramHandler)
-                                    .bind(8100 + random.nextInt(100))
+                                    .bind(randPort)
                                     .sync()
                                     .channel();
                             InetSocketAddress remoteAddr = new InetSocketAddress("localhost", port);
@@ -56,7 +57,7 @@ public class Bootstrap {
                                     port, remoteChn, remoteAddr
                             );
                         } catch (Exception e) {
-                            log.warn("port already bind? retry...");
+                            log.warn("port {} occupied? retry...", randPort);
                         }
                     }
                 })
@@ -65,8 +66,8 @@ public class Bootstrap {
         RemoteCommunicationParamPack paramPack = new RemoteCommunicationParamPack(communicationTargets);
         NodeStatus.setParamPack(paramPack);
 
-        NodeStatus.resetHeartbeatThread(false);
-        NodeStatus.resetVoteResWatchdogThread(false);
+        NodeStatus.rstHeartbeatThread(false);
+        NodeStatus.rstVoteResWatchdogThread(false);
 
         GeneralInboundDatagramHandler generalInboundDatagramHandler = new GeneralInboundDatagramHandler();
 
@@ -76,7 +77,7 @@ public class Bootstrap {
                 .handler(generalInboundDatagramHandler)
                 .bind(NodeStatus.nodePort());
 
-        NodeStatus.resetHeartBeatWatchdogThread(true);
+        NodeStatus.rstHeartBeatWatchdogThread(true);
 
         log.info("init ok");
     }

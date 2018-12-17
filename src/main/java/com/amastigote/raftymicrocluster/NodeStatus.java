@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author: hwding
@@ -19,7 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j(topic = "[NODE STATUS]")
 public final class NodeStatus {
 
-    private static String nodeName;
     private static int nodePort;
     private static Role role = Role.FOLLOWER;
 
@@ -29,12 +27,12 @@ public final class NodeStatus {
     private static Thread voteResWatchdogThread;
     private static Thread heartBeatWatchdogThread;
 
-    private static AtomicInteger currentTerm = new AtomicInteger(0);
+    private static int currentTerm = 0;
 
     /* refer to com.amastigote.raftymicrocluster.protocol.GeneralMsg.responseToPort, voted for candidateId */
-    private static AtomicInteger votedFor = new AtomicInteger(0);
+    private static int votedFor = 0;
 
-    private static AtomicInteger voteCnt = new AtomicInteger();
+    private static int voteCnt = 0;
 
     private static RemoteCommunicationParamPack paramPack;
 
@@ -48,8 +46,7 @@ public final class NodeStatus {
     private static int committedIdx;
     private static int appliedIdx;
 
-    synchronized static void init(String nodeName, int nodePort, int totalNodeCnt) {
-        NodeStatus.nodeName = nodeName;
+    synchronized static void init(int nodePort, int totalNodeCnt) {
         NodeStatus.nodePort = nodePort;
         NodeStatus.totalNodeCnt = totalNodeCnt;
     }
@@ -58,31 +55,28 @@ public final class NodeStatus {
         return totalNodeCnt / 2 + 1;
     }
 
-    public static String nodeName() {
-        return nodeName;
-    }
-
     public static int nodePort() {
         return nodePort;
     }
 
-    public static int incrTerm() {
-        return currentTerm.incrementAndGet();
-    }
-
     public static int currentTerm() {
-        return currentTerm.get();
+        return currentTerm;
     }
 
-    public static void updateTerm(int newTerm) {
-        int oldTerm = currentTerm.get();
-        while (oldTerm < newTerm) {
-            currentTerm.compareAndSet(oldTerm, newTerm);
-            oldTerm = currentTerm.get();
+    public static synchronized int incrCurrentTerm() {
+        return ++currentTerm;
+    }
+
+    public static synchronized void updateTerm(int newTerm) {
+        if (currentTerm >= newTerm) {
+            log.warn("bad term transfer: {} -> {}, ignore", currentTerm, newTerm);
+            return;
         }
+
+        currentTerm = newTerm;
     }
 
-    public static synchronized void resetVoteResWatchdogThread(boolean fire) {
+    public static synchronized void rstVoteResWatchdogThread(boolean fire) {
         if (Objects.nonNull(voteResWatchdogThread) && voteResWatchdogThread.isAlive()) {
             voteResWatchdogThread.interrupt();
         }
@@ -94,7 +88,7 @@ public final class NodeStatus {
         }
     }
 
-    public static synchronized void resetHeartbeatThread(boolean fire) {
+    public static synchronized void rstHeartbeatThread(boolean fire) {
         if (Objects.nonNull(heartbeatThread) && heartbeatThread.isAlive()) {
             heartbeatThread.interrupt();
         }
@@ -106,7 +100,7 @@ public final class NodeStatus {
         }
     }
 
-    public static synchronized void resetHeartBeatWatchdogThread(boolean fire) {
+    public static synchronized void rstHeartBeatWatchdogThread(boolean fire) {
         if (Objects.nonNull(heartBeatWatchdogThread) && heartBeatWatchdogThread.isAlive()) {
             heartBeatWatchdogThread.interrupt();
         }
@@ -145,41 +139,34 @@ public final class NodeStatus {
         return paramPack;
     }
 
-    public static int incrVoteCnt() {
-        return voteCnt.incrementAndGet();
+    public static synchronized int incrVoteCnt() {
+        return ++voteCnt;
     }
 
-    public static void resetVoteCnt(int newValue) {
-        voteCnt.set(newValue);
+    public static synchronized void rstVoteCnt(int newValue) {
+        voteCnt = 0;
     }
 
-    public static void resetVotedFor() {
-        votedFor.set(0);
-    }
-
-    public static int voteCnt() {
-        return voteCnt.get();
+    public static synchronized void rstVotedFor() {
+        votedFor = 0;
     }
 
     public static int votedFor() {
-        return votedFor.get();
+        return votedFor;
     }
 
     public static Role role() {
         return role;
     }
 
-    public static boolean voteFor(Integer candidateId) {
-        boolean set = false;
-        while (!set) {
-            int votedForPort = votedFor.get();
-            if (votedForPort != 0) {
-                log.warn("already voted for {} in current term, give up", votedForPort);
-                return false;
-            }
-            set = votedFor.compareAndSet(0, candidateId);
+    public static synchronized void voteFor(int candidateId) {
+        if (votedFor != 0) {
+            votedFor = candidateId;
+
+            log.info("voted for {} in current term {}", votedFor, currentTerm);
         }
-        return true;
+
+        log.warn("already voted for {} in current term {}, give up", votedFor, currentTerm);
     }
 
     public static Thread heartBeatWatchdogThread() {

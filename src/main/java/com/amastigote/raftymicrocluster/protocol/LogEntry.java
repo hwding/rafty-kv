@@ -13,6 +13,6 @@ import lombok.ToString;
 @Setter
 @ToString
 public class LogEntry {
-    private Integer term;
+    private int term;
     private Object data;
 }

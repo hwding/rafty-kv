@@ -81,7 +81,7 @@ public final class ElectMsgDispatcher {
                     synchronized (NodeStatus.class) {
                         NodeStatus.setRoleTo(Role.LEADER);
 
-                        NodeStatus.resetHeartbeatThread(true);
+                        NodeStatus.rstHeartbeatThread(true);
 
                         NodeStatus.heartBeatWatchdogThread().interrupt();
                         NodeStatus.voteResWatchdogThread().interrupt();

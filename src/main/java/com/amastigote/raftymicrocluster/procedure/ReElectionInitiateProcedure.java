@@ -20,12 +20,12 @@ public class ReElectionInitiateProcedure extends Thread {
 
         /* transfer state */
         synchronized (NodeStatus.class) {
-            newTerm = NodeStatus.incrTerm();
+            newTerm = NodeStatus.incrCurrentTerm();
             NodeStatus.setRoleTo(Role.CANDIDATE);
 
             /* candidate should first vote for itself */
-            NodeStatus.resetVoteCnt(1);
-            NodeStatus.resetVotedFor();
+            NodeStatus.rstVoteCnt(1);
+            NodeStatus.rstVotedFor();
         }
         log.info("term increased to " + newTerm);
 
@@ -33,8 +33,8 @@ public class ReElectionInitiateProcedure extends Thread {
 
         /* reset concerning timers */
         synchronized (NodeStatus.class) {
-            NodeStatus.resetVoteResWatchdogThread(true);
-            NodeStatus.resetHeartBeatWatchdogThread(false);
+            NodeStatus.rstVoteResWatchdogThread(true);
+            NodeStatus.rstHeartBeatWatchdogThread(false);
         }
     }
 }

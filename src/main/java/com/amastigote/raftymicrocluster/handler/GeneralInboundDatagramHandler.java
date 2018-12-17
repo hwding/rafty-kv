@@ -61,7 +61,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
         public Void apply(Boolean needResetTimerIfAlreadyActive) {
             synchronized (NodeStatus.class) {
                 if (!NodeStatus.heartBeatWatchdogThread().isAlive()) {
-                    NodeStatus.resetHeartBeatWatchdogThread(true);
+                    NodeStatus.rstHeartBeatWatchdogThread(true);
                     log.info("heartbeatRecvTimeoutDetectThread reset and start");
                 } else if (needResetTimerIfAlreadyActive) {
                     NodeStatus.heartBeatWatchdogThread().interrupt();
@@ -76,13 +76,13 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
 
         @Override
         public Boolean apply(Integer term) {
-            if (NodeStatus.currentTerm() <= term) {
+            if (NodeStatus.currentTerm() < term) {
                 synchronized (NodeStatus.class) {
-                    if (NodeStatus.currentTerm() <= term) {
-                        log.info("equal or newer term detected");
+                    if (NodeStatus.currentTerm() < term) {
+                        log.info("newer term detected");
 
                         NodeStatus.updateTerm(term);
-                        NodeStatus.resetVotedFor();
+                        NodeStatus.rstVotedFor();
                         return true;
                     }
                     return false;

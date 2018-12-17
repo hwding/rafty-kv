@@ -17,20 +17,20 @@ import java.io.Serializable;
 public class GeneralMsg implements Serializable {
     private MsgType msgType;
     private MsgType.ElectMsgType electMsgType;
-    private Integer term;
+    private int term;
 
     /* servers as leaderId in this case */
-    private Integer responseToPort;
+    private int responseToPort;
 
     /* >> AppendEntryMsg only */
-    private Integer prevLogIdx;
-    private Integer prevLogTerm;
+    private int prevLogIdx;
+    private int prevLogTerm;
     private LogEntry[] entries;
-    private Integer committedIdx;
+    private int committedIdx;
     /* << AppendEntryMsg only */
 
     /* >> RequestVoteMsg only */
-    private Integer lastLogIdx;
-    private Integer lastLogTerm;
+    private int lastLogIdx;
+    private int lastLogTerm;
     /* << RequestVoteMsg only */
 }
