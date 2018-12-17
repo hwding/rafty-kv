@@ -30,7 +30,7 @@ public class VoteResWatchdogThread extends Thread {
                 }
             }
         } catch (InterruptedException e) {
-            log.info("is LEADER OR has other LEADER OR restart to solve split vote OR, exit without any further action");
+            log.info("is LEADER OR has other LEADER OR restart to solve split vote, exit without any further action");
         }
     }
 

@@ -29,7 +29,7 @@ public class Bootstrap {
 
         Random random = new Random(System.nanoTime());
         NodeStatus.init("Node-" + Integer.valueOf(args[0]), Integer.valueOf(args[0]), args.length);
-        EventLoopGroup loopGroup = new NioEventLoopGroup();
+        EventLoopGroup loopGroup = new NioEventLoopGroup(1);
         DoNothingInboundDatagramHandler doNothingInboundDatagramHandler = new DoNothingInboundDatagramHandler();
 
         String[] desPorts = new String[args.length - 1];
