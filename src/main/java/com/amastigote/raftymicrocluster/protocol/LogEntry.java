@@ -1,8 +1,8 @@
 package com.amastigote.raftymicrocluster.protocol;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
+
+import java.util.Map;
 
 /**
  * @author: hwding
@@ -11,8 +11,31 @@ import lombok.ToString;
 @SuppressWarnings("JavaDoc")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @ToString
-public class LogEntry {
+public class LogEntry implements Map.Entry {
     private int term;
-    private Object data;
+    private Object key, value;
+
+    public LogEntry(Object key, Object value) {
+        this.key = key;
+        this.value = value;
+    }
+
+    @Override
+    public Object getKey() {
+        return key;
+    }
+
+    @Override
+    public Object getValue() {
+        return value;
+    }
+
+    @Override
+    public Object setValue(Object value) {
+        this.value = value;
+        return this.value;
+    }
 }

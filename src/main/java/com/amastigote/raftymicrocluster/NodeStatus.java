@@ -12,6 +12,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author: hwding
@@ -200,7 +201,7 @@ public final class NodeStatus {
         List<Integer> replicatedIdx = new ArrayList<>(followerReplicatedIdxMap.values());
         replicatedIdx.add(entries.size() - 1);
 
-        log.info("we have replicated {} currently in cluster", replicatedIdx);
+        log.info("we have replicated idx {} currently in cluster", replicatedIdx);
 
         replicatedIdx.sort(null);
         int clusterCommittedIdx = replicatedIdx.get(majorityNodeCnt() - 1);
@@ -232,6 +233,31 @@ public final class NodeStatus {
         recalculateCommittedIdx();
     }
 
+    /* LEADER use only */
+    public synchronized static void appendEntryFromClient(Collection<LogEntry> entries) {
+        if (!Role.LEADER.equals(role)) {
+            log.error("violet role check in appendEntryFromClient, ignore");
+            return;
+        }
+
+        entries = entries.parallelStream()
+                .peek(e -> e.setTerm(currentTerm))
+                .collect(Collectors.toCollection(ArrayList::new));
+        NodeStatus.entries.addAll(entries);
+    }
+
+    /* LEADER use only */
+    public synchronized static void appendEntryFromCLient(LogEntry entry) {
+        if (!Role.LEADER.equals(role)) {
+            log.error("violet role check in appendEntryFromClient, ignore");
+            return;
+        }
+
+        entry.setTerm(currentTerm);
+        NodeStatus.entries.add(entry);
+    }
+
+    /* FOLLOWER use only */
     public synchronized static FollowerAppendEntryResultContext appendEntry(
             final List<LogEntry> residualLogs,
             final int prevLogIdx,
@@ -240,6 +266,12 @@ public final class NodeStatus {
             final int committedIdx
     ) {
         FollowerAppendEntryResultContext context = new FollowerAppendEntryResultContext();
+
+        if (!Role.FOLLOWER.equals(role)) {
+            log.error("violet role check in appendEntry, ignore");
+            context.setNeedRespond(false);
+            return context;
+        }
 
         if (Objects.isNull(residualLogs) || residualLogs.isEmpty()) {
             log.info("simple heartbeat without entries, no appending is needed");
