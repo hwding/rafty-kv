@@ -144,7 +144,7 @@ public final class NodeStatus {
     }
 
     public static synchronized void rstVoteCnt(int newValue) {
-        voteCnt = 0;
+        voteCnt = newValue;
     }
 
     public static synchronized void rstVotedFor() {
