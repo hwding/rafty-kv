@@ -1,3 +1,4 @@
 target/
 rafty-micro-cluster.iml
 .idea/
+src/test/

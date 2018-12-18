@@ -216,7 +216,10 @@ public final class NodeStatus {
     }
 
     /* LEADER use only */
-    public synchronized static void updateFollowerEntriesState(final int followerPort, final int lastReplicatedLogIdx) {
+    public synchronized static void updateFollowerEntriesState(
+            final int followerPort,
+            final int lastReplicatedLogIdx
+    ) {
         final int oldLastReplicatedLogIdx = followerReplicatedIdxMap.getOrDefault(followerPort, -1);
 
         if (oldLastReplicatedLogIdx > lastReplicatedLogIdx) {
