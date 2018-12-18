@@ -16,21 +16,24 @@ import java.io.Serializable;
 @ToString
 public class GeneralMsg implements Serializable {
     private MsgType msgType;
-    private MsgType.ElectMsgType electMsgType;
+    private MsgType.RpcAnalogType rpcAnalogType;
+
     private int term;
 
-    /* servers as leaderId in this case */
+    /* act as sender node id */
     private int responseToPort;
 
-    /* >> AppendEntryMsg only */
+    /* >> AppendEntryMsg only (ping) */
     private int prevLogIdx;
     private int prevLogTerm;
     private LogEntry[] entries;
     private int committedIdx;
-    /* << AppendEntryMsg only */
+    /* << AppendEntryMsg only (ping) */
 
     /* >> RequestVoteMsg only */
+    /* >> AppendEntryMsg only (pong) */
     private int lastLogIdx;
+    /* << AppendEntryMsg only (pong) */
     private int lastLogTerm;
     /* << RequestVoteMsg only */
 }

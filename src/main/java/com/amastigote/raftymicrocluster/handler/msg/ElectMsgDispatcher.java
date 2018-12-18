@@ -22,9 +22,9 @@ public final class ElectMsgDispatcher {
             GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker
     ) {
         log.info("ElectMsgDispatcher dispatching...");
-        MsgType.ElectMsgType electMsgType = msg.getElectMsgType();
+        MsgType.RpcAnalogType rpcAnalogType = msg.getRpcAnalogType();
 
-        if (electMsgType.equals(MsgType.ElectMsgType.VOTE_REQ)) {
+        if (rpcAnalogType.equals(MsgType.RpcAnalogType.REQ)) {
             NodeStatus.heartBeatWatchdogThread().interrupt();
             if (NodeStatus.role().equals(Role.LEADER)) {
 
@@ -73,7 +73,7 @@ public final class ElectMsgDispatcher {
             return;
         }
 
-        if (electMsgType.equals(MsgType.ElectMsgType.VOTE_RES)) {
+        if (rpcAnalogType.equals(MsgType.RpcAnalogType.RES)) {
             if (NodeStatus.role().equals(Role.CANDIDATE)) {
                 int voteCnt = NodeStatus.incrVoteCnt();
                 if (voteCnt >= NodeStatus.majorityNodeCnt()) {
@@ -90,7 +90,7 @@ public final class ElectMsgDispatcher {
                 return;
             }
 
-            log.info("the candidate may stepped down or already become leader, ignore VOTE_RES");
+            log.info("the candidate may stepped down or already become leader, ignore vote RES");
         }
     }
 }

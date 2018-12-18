@@ -9,8 +9,9 @@ public enum MsgType {
     HEARTBEAT,
     ELECT;
 
-    public enum ElectMsgType {
-        VOTE_REQ,
-        VOTE_RES
+    /* ping or pong */
+    public enum RpcAnalogType {
+        REQ,
+        RES
     }
 }

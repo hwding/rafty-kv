@@ -28,7 +28,7 @@ public class RequestVoteProcedure extends Thread {
         NodeStatus.paramPack().getCommunicationTargets().parallelStream().forEach(t -> {
             GeneralMsg msg = new GeneralMsg();
             msg.setMsgType(MsgType.ELECT);
-            msg.setElectMsgType(MsgType.ElectMsgType.VOTE_REQ);
+            msg.setRpcAnalogType(MsgType.RpcAnalogType.REQ);
             msg.setTerm(NodeStatus.currentTerm());
             msg.setResponseToPort(NodeStatus.nodePort());
 

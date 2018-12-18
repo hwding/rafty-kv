@@ -64,7 +64,7 @@ public class VoteForCandidateProcedure extends Thread {
 
             GeneralMsg msg = new GeneralMsg();
             msg.setMsgType(MsgType.ELECT);
-            msg.setElectMsgType(MsgType.ElectMsgType.VOTE_RES);
+            msg.setRpcAnalogType(MsgType.RpcAnalogType.RES);
             msg.setTerm(candidateTerm);
 
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
