@@ -22,6 +22,7 @@ public class HeartBeatWatchdogThread extends Thread {
 
     @Override
     public void run() {
+        log.info("heartbeat watchdog thread start running...");
         while (!this.isInterrupted()) {
             try {
                 synchronized (this) {

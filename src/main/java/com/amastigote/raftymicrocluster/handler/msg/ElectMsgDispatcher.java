@@ -18,7 +18,7 @@ public final class ElectMsgDispatcher {
 
     public static void dispatch(
             GeneralMsg msg,
-            boolean newerTerm,
+            int compareToRecvTerm,
             GeneralInboundDatagramHandler.HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker
     ) {
         log.info("ElectMsgDispatcher dispatching...");
@@ -30,7 +30,7 @@ public final class ElectMsgDispatcher {
 
                 /* step down and vote for this candidate */
                 synchronized (NodeStatus.class) {
-                    NodeStatus.setRoleTo(Role.FOLLOWER);
+                    NodeStatus.transferRoleTo(Role.FOLLOWER);
                     NodeStatus.heartbeatThread().interrupt();
 
                     heartbeatWatchdogResetInvoker.apply(false);
@@ -42,11 +42,11 @@ public final class ElectMsgDispatcher {
             }
 
             if (NodeStatus.role().equals(Role.CANDIDATE)) {
-                if (newerTerm) {
+                if (compareToRecvTerm == -1) {
 
                     /* step down and vote for this newer candidate */
                     synchronized (NodeStatus.class) {
-                        NodeStatus.setRoleTo(Role.FOLLOWER);
+                        NodeStatus.transferRoleTo(Role.FOLLOWER);
 
                         /* end campaign waiting in advance */
                         NodeStatus.voteResWatchdogThread().interrupt();
@@ -63,7 +63,7 @@ public final class ElectMsgDispatcher {
                 return;
             }
 
-            if (NodeStatus.role().equals(Role.FOLLOWER) && newerTerm) {
+            if (NodeStatus.role().equals(Role.FOLLOWER) && (compareToRecvTerm <= 0)) {
 
                 /* the follower should remain its state as long as it receives valid RPCs from leader OR **candidate** */
                 heartbeatWatchdogResetInvoker.apply(true);
@@ -79,7 +79,7 @@ public final class ElectMsgDispatcher {
                 if (voteCnt >= NodeStatus.majorityNodeCnt()) {
                     log.info("nice, i'm leader now with voteCnt {}", voteCnt);
                     synchronized (NodeStatus.class) {
-                        NodeStatus.setRoleTo(Role.LEADER);
+                        NodeStatus.transferRoleTo(Role.LEADER);
 
                         NodeStatus.rstHeartbeatThread(true);
 

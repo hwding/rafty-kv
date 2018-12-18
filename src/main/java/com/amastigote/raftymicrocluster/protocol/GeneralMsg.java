@@ -5,6 +5,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * @author: hwding
@@ -15,25 +16,27 @@ import java.io.Serializable;
 @Setter
 @ToString
 public class GeneralMsg implements Serializable {
-    private MsgType msgType;
-    private MsgType.RpcAnalogType rpcAnalogType;
+    private MsgType msgType = null;
+    private MsgType.RpcAnalogType rpcAnalogType = null;
 
-    private int term;
+    private int term = -1;
 
     /* act as sender node id */
-    private int responseToPort;
+    private int responseToPort = -1;
 
     /* >> AppendEntryMsg only (ping) */
-    private int prevLogIdx;
-    private int prevLogTerm;
-    private LogEntry[] entries;
-    private int committedIdx;
+    private int prevLogIdx = -1;
+    private int prevLogTerm = -1;
+    private List<LogEntry> entries = null;
+    private int appliedIdx = -1;
+    private int committedIdx = -1;
     /* << AppendEntryMsg only (ping) */
 
-    /* >> RequestVoteMsg only */
     /* >> AppendEntryMsg only (pong) */
-    private int lastLogIdx;
+    private int lastReplicatedLogIdx = -1;
     /* << AppendEntryMsg only (pong) */
-    private int lastLogTerm;
+
+    /* >> RequestVoteMsg only */
+    private int lastLogTerm = -1;
     /* << RequestVoteMsg only */
 }

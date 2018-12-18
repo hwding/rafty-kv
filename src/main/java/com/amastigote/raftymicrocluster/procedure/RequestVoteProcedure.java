@@ -23,7 +23,7 @@ public class RequestVoteProcedure extends Thread {
 
     @Override
     public void run() {
-        log.info("reelection thread start...");
+        log.info("RequestVoteProcedure start...");
 
         NodeStatus.paramPack().getCommunicationTargets().parallelStream().forEach(t -> {
             GeneralMsg msg = new GeneralMsg();
@@ -42,7 +42,7 @@ public class RequestVoteProcedure extends Thread {
 
                 t.getChannel().writeAndFlush(packet).addListener(future -> {
                     if (!future.isSuccess()) {
-                        log.info("failed to req vote to {}", t.getPort());
+                        log.error("failed to req vote to {}", t.getPort());
                         return;
                     }
                     log.info("vote req sent to {}", t.getPort());
@@ -51,5 +51,6 @@ public class RequestVoteProcedure extends Thread {
                 log.error("error when sending datagram", e);
             }
         });
+        log.info("RequestVoteProcedure end...");
     }
 }

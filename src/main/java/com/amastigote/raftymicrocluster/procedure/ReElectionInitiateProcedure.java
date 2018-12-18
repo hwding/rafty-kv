@@ -14,14 +14,14 @@ public class ReElectionInitiateProcedure extends Thread {
 
     @Override
     public void run() {
-        log.info("! leader reelection initiate...");
+        log.info("ReElectionInitiateProcedure start...");
 
         long newTerm;
 
         /* transfer state */
         synchronized (NodeStatus.class) {
             newTerm = NodeStatus.incrCurrentTerm();
-            NodeStatus.setRoleTo(Role.CANDIDATE);
+            NodeStatus.transferRoleTo(Role.CANDIDATE);
 
             /* candidate should first vote for itself */
             NodeStatus.rstVoteCnt(1);
@@ -29,12 +29,14 @@ public class ReElectionInitiateProcedure extends Thread {
         }
         log.info("term increased to " + newTerm);
 
-        new RequestVoteProcedure().start();
-
         /* reset concerning timers */
         synchronized (NodeStatus.class) {
             NodeStatus.rstVoteResWatchdogThread(true);
             NodeStatus.rstHeartBeatWatchdogThread(false);
         }
+
+        new RequestVoteProcedure().start();
+
+        log.info("ReElectionInitiateProcedure end...");
     }
 }

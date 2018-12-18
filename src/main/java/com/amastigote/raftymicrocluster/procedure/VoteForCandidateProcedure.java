@@ -32,6 +32,8 @@ public class VoteForCandidateProcedure extends Thread {
 
     @Override
     public void run() {
+        log.info("VoteForCandidateProcedure start...");
+
         int votedFor = NodeStatus.votedFor();
 
         if (votedFor != 0) {
@@ -43,8 +45,13 @@ public class VoteForCandidateProcedure extends Thread {
             votedFor = NodeStatus.votedFor();
 
             /* double check */
-            if (NodeStatus.votedFor() != 0) {
+            if (votedFor != 0) {
                 log.warn("has voted for {} in term {}, give up", votedFor, candidateTerm);
+                return;
+            }
+
+            if (NodeStatus.currentTerm() != candidateTerm) {
+                log.warn("term updated {} -> {} before voting, give up", candidateTerm, NodeStatus.currentTerm());
                 return;
             }
 
@@ -56,7 +63,7 @@ public class VoteForCandidateProcedure extends Thread {
                     .findFirst();
 
             if (!targetOptional.isPresent()) {
-                log.warn("no such target port {} in remote target list, ignore vote req", candidatePort);
+                log.warn("no such target port {} in remote target list, give up voting", candidatePort);
                 return;
             }
 
@@ -65,6 +72,8 @@ public class VoteForCandidateProcedure extends Thread {
             GeneralMsg msg = new GeneralMsg();
             msg.setMsgType(MsgType.ELECT);
             msg.setRpcAnalogType(MsgType.RpcAnalogType.RES);
+
+            /* avoid current term change during interval of procedures */
             msg.setTerm(candidateTerm);
 
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -78,9 +87,10 @@ public class VoteForCandidateProcedure extends Thread {
 
                 target.getChannel().writeAndFlush(packet).addListener(future -> {
                     if (!future.isSuccess()) {
-                        log.info("failed to vote for {}", target.getPort());
+                        log.error("failed to vote for {}", target.getPort());
                         return;
                     }
+
                     NodeStatus.voteFor(candidatePort);
                 });
 
@@ -88,5 +98,6 @@ public class VoteForCandidateProcedure extends Thread {
                 log.error("error when sending datagram", e);
             }
         }
+        log.info("VoteForCandidateProcedure end...");
     }
 }

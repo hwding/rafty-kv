@@ -52,7 +52,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
 
         /* ignore any lower term heartbeat */
         if ((compareToRecvTerm <= 0) && MsgType.HEARTBEAT.equals(msg.getMsgType())) {
-            HeartbeatMsgDispatcher.dispatch(this.heartbeatWatchdogResetInvoker);
+            HeartbeatMsgDispatcher.dispatch(msg, this.heartbeatWatchdogResetInvoker);
         }
     }
 

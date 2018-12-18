@@ -23,21 +23,30 @@ import java.io.ObjectOutputStream;
 @Slf4j(topic = "[HEARTBEAT THREAD]")
 public class HeartBeatThread extends Thread {
 
-    /* TODO job list here */
-
     @Override
     public void run() {
-        GeneralMsg msg = new GeneralMsg();
-        msg.setMsgType(MsgType.HEARTBEAT);
-        msg.setTerm(NodeStatus.currentTerm());
-
         while (!super.isInterrupted()) {
+            log.info("round start...");
             try {
                 NodeStatus.paramPack()
                         .getCommunicationTargets()
                         .parallelStream()
                         .forEach(target -> {
                             try {
+                                final int targetPort = target.getPort();
+
+                                final GeneralMsg msg = new GeneralMsg();
+                                msg.setMsgType(MsgType.HEARTBEAT);
+                                msg.setRpcAnalogType(MsgType.RpcAnalogType.REQ);
+                                msg.setTerm(NodeStatus.currentTerm());
+
+                                NodeStatus.FollowerResidualEntryInfo residualLogs = NodeStatus.genResidualEntryInfoForFollower(targetPort);
+                                msg.setEntries(residualLogs.getResidualLogs());
+                                msg.setAppliedIdx(NodeStatus.appliedIdx());
+                                msg.setCommittedIdx(NodeStatus.committedIdx());
+                                msg.setPrevLogIdx(residualLogs.getPrevLogIdx());
+                                msg.setPrevLogTerm(residualLogs.getPrevLogTerm());
+
                                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                                 ObjectOutputStream outputStream = new ObjectOutputStream(byteArrayOutputStream);
                                 outputStream.writeObject(msg);
@@ -48,10 +57,10 @@ public class HeartBeatThread extends Thread {
 
                                 target.getChannel().writeAndFlush(packet).addListener(future -> {
                                     if (!future.isSuccess()) {
-                                        log.info("failed to send heartbeat to {}", target.getPort());
+                                        log.error("failed to send heartbeat to {}", targetPort);
                                         return;
                                     }
-                                    log.info("heartbeat sent to {}", target.getPort());
+                                    log.info("heartbeat sent to {}", targetPort);
                                 });
                             } catch (IOException e) {
                                 log.error("", e);
@@ -62,6 +71,7 @@ public class HeartBeatThread extends Thread {
                 log.info("heartbeat thread has been stopped, exit");
                 break;
             }
+            log.info("round end...");
         }
     }
 }
