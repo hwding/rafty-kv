@@ -43,14 +43,15 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
         log.info("udp datagram recv: {}", msg);
 
         /* reInit term if msg's term is higher */
-        boolean newerTerm = this.termResetInvoker.apply(msg.getTerm());
-
-        if (MsgType.ELECT.equals(msg.getMsgType())) {
-            ElectMsgDispatcher.dispatch(msg, newerTerm, this.heartbeatWatchdogResetInvoker);
-        }
+        int compareToRecvTerm = this.termResetInvoker.apply(msg.getTerm());
 
         /* ignore any lower term heartbeat, mostly consider for the CANDIDATE situation */
-        if (newerTerm && MsgType.HEARTBEAT.equals(msg.getMsgType())) {
+        if ((compareToRecvTerm <= 0) && MsgType.ELECT.equals(msg.getMsgType())) {
+            ElectMsgDispatcher.dispatch(msg, compareToRecvTerm, this.heartbeatWatchdogResetInvoker);
+        }
+
+        /* ignore any lower term heartbeat */
+        if ((compareToRecvTerm <= 0) && MsgType.HEARTBEAT.equals(msg.getMsgType())) {
             HeartbeatMsgDispatcher.dispatch(this.heartbeatWatchdogResetInvoker);
         }
     }
@@ -62,7 +63,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
             synchronized (NodeStatus.class) {
                 if (!NodeStatus.heartBeatWatchdogThread().isAlive()) {
                     NodeStatus.rstHeartBeatWatchdogThread(true);
-                    log.info("heartbeatRecvTimeoutDetectThread reset and start");
+                    log.info("heartBeatWatchdogThread reset and start");
                 } else if (needResetTimerIfAlreadyActive) {
                     NodeStatus.heartBeatWatchdogThread().interrupt();
                 }
@@ -72,24 +73,25 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
         }
     }
 
-    public static class TermResetInvoker implements Function<Integer, Boolean> {
+    public static class TermResetInvoker implements Function<Integer, Integer> {
 
         @Override
-        public Boolean apply(Integer term) {
-            if (NodeStatus.currentTerm() < term) {
-                synchronized (NodeStatus.class) {
-                    if (NodeStatus.currentTerm() < term) {
-                        log.info("newer term detected");
+        public Integer apply(Integer term) {
+            synchronized (NodeStatus.class) {
 
-                        NodeStatus.updateTerm(term);
-                        NodeStatus.rstVotedFor();
-                        return true;
-                    }
-                    return false;
+                /* -1: current is older
+                 *  0: equal
+                 * +1: current is newer */
+                int compareToRecvTerm = Integer.compare(NodeStatus.currentTerm(), term);
+                if (compareToRecvTerm == -1) {
+                    log.info("newer term {} detected", term);
+
+                    NodeStatus.updateTerm(term);
+                    NodeStatus.rstVotedFor();
                 }
-            }
 
-            return false;
+                return compareToRecvTerm;
+            }
         }
     }
 }
