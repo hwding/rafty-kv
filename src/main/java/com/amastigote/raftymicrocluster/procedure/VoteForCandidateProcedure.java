@@ -73,7 +73,6 @@ public class VoteForCandidateProcedure extends Thread {
             msg.setMsgType(MsgType.ELECT);
             msg.setRpcAnalogType(MsgType.RpcAnalogType.RES);
 
-            /* avoid current term change during interval of procedures */
             msg.setTerm(candidateTerm);
 
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
