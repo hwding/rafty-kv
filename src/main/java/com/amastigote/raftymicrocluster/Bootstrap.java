@@ -1,13 +1,16 @@
 package com.amastigote.raftymicrocluster;
 
+import com.amastigote.raftymicrocluster.handler.ClientHttpHandler;
 import com.amastigote.raftymicrocluster.handler.DoNothingInboundDatagramHandler;
 import com.amastigote.raftymicrocluster.handler.GeneralInboundDatagramHandler;
+import com.sun.net.httpserver.HttpServer;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
@@ -79,6 +82,17 @@ public class Bootstrap {
                 .bind(NodeStatus.nodePort());
 
         NodeStatus.rstHeartBeatWatchdogThread(true);
+
+        /* >> server for client init */
+        try {
+            HttpServer server = HttpServer.create(new InetSocketAddress(NodeStatus.nodePort() + 200), 0);
+            server.createContext("/", new ClientHttpHandler());
+            server.start();
+        } catch (IOException e) {
+            log.error("fatal: cannot bind port for http server");
+            System.exit(-1);
+        }
+        /* << server for client init */
 
         log.info("init ok");
     }

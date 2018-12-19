@@ -9,8 +9,8 @@ Using netty's event-driven udp for communication.
 - Basic leader election/reelection
 #### Ongoing
 - Log replication
-#### Todo
 - Client interaction
+#### Todo
 - Safety
 - Persisted states & recovery
 - Leadership transfer extension
