@@ -52,7 +52,7 @@ public class HeartbeatMsgDispatcher {
             heartbeatWatchdogResetInvoker.apply(true);
 
             NodeStatus.FollowerAppendEntryResultContext context = NodeStatus.appendEntry(
-                    msg.getEntries(), msg.getPrevLogIdx(), msg.getPrevLogTerm(), msg.getAppliedIdx(), msg.getCommittedIdx()
+                    msg.getEntries(), msg.getPrevLogIdx(), msg.getPrevLogTerm(), msg.getLeaderCommittedIdx()
             );
             if (context.isNeedRespond()) {
                 context.setResToPort(msg.getResponseToPort());

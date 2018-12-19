@@ -17,10 +17,12 @@ import java.util.Map;
 public class LogEntry implements Map.Entry {
     private int term;
     private Object key, value;
+    private LogCommandType logCommandType;
 
-    public LogEntry(Object key, Object value) {
+    public LogEntry(Object key, Object value, LogCommandType logCommandType) {
         this.key = key;
         this.value = value;
+        this.logCommandType = logCommandType;
     }
 
     @Override
@@ -37,5 +39,11 @@ public class LogEntry implements Map.Entry {
     public Object setValue(Object value) {
         this.value = value;
         return this.value;
+    }
+
+    public enum LogCommandType {
+        PUT,
+        GET,
+        REMOVE
     }
 }

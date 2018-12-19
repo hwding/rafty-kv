@@ -28,8 +28,7 @@ public class GeneralMsg implements Serializable {
     private int prevLogIdx = -1;
     private int prevLogTerm = -1;
     private List<LogEntry> entries = null;
-    private int appliedIdx = -1;
-    private int committedIdx = -1;
+    private int leaderCommittedIdx = -1;
     /* << AppendEntryMsg only (ping) */
 
     /* >> AppendEntryMsg only (pong) */

@@ -48,11 +48,11 @@ public final class NodeStatus {
 
     private static List<LogEntry> entries = new ArrayList<>();
 
-    /* last idx of entries which is replicated to the majority of the cluster (committed)
-     * is the criteria of 'is safe to apply?' */
-    private static volatile int committedIdx = -1;
+    /* global(remote): last idx of entries which is replicated to the majority of the cluster (committed)
+     * is the criteria of 'is it safe to apply?' */
+    private static volatile int leaderCommittedIdx = -1;
 
-    /* last idx of entries which is applied to the current state machine */
+    /* local: last idx of entries which is applied to the current state machine */
     private static volatile int appliedIdx = -1;
 
     synchronized static void init(int nodePort, int totalNodeCnt) {
@@ -192,8 +192,8 @@ public final class NodeStatus {
         return heartbeatThread;
     }
 
-    public static int committedIdx() {
-        return committedIdx;
+    public static int leaderCommittedIdx() {
+        return leaderCommittedIdx;
     }
 
     /* LEADER use only */
@@ -207,9 +207,9 @@ public final class NodeStatus {
         int clusterCommittedIdx = replicatedIdx.get(majorityNodeCnt() - 1);
 
         log.info("we have recalculate the clusterCommittedIdx as {}", clusterCommittedIdx);
-        committedIdx = clusterCommittedIdx;
+        leaderCommittedIdx = clusterCommittedIdx;
 
-        applyEntry(committedIdx);
+        applyEntry();
     }
 
     public static int appliedIdx() {
@@ -247,7 +247,7 @@ public final class NodeStatus {
     }
 
     /* LEADER use only */
-    public synchronized static void appendEntryFromCLient(LogEntry entry) {
+    public synchronized static void appendEntryFromCLient(final LogEntry entry) {
         if (!Role.LEADER.equals(role)) {
             log.error("violet role check in appendEntryFromClient, ignore");
             return;
@@ -262,8 +262,7 @@ public final class NodeStatus {
             final List<LogEntry> residualLogs,
             final int prevLogIdx,
             final int prevLogTerm,
-            final int appliedIdx,
-            final int committedIdx
+            final int leaderCommittedIdx
     ) {
         FollowerAppendEntryResultContext context = new FollowerAppendEntryResultContext();
 
@@ -279,13 +278,19 @@ public final class NodeStatus {
             return context;
         }
 
-        if (Role.FOLLOWER.equals(role)) {
-            /* simply update the global known committedIdx */
-            NodeStatus.committedIdx = NodeStatus.committedIdx < committedIdx ? committedIdx : NodeStatus.committedIdx;
+        /* simply update the leaderCommittedIdx */
+        if (NodeStatus.leaderCommittedIdx > leaderCommittedIdx) {
+            log.error("we have failed a constraint check which NodeStatus.leaderCommittedIdx {} > leaderCommittedIdx {}, try recovering by resetting related val", NodeStatus.leaderCommittedIdx, leaderCommittedIdx);
+        }
+        NodeStatus.leaderCommittedIdx = leaderCommittedIdx;
+
+        if (appliedIdx > leaderCommittedIdx) {
+            log.error("we have failed a constraint check which appliedIdx {} > leaderCommittedIdx {}, try recovering by resetting related val", appliedIdx, leaderCommittedIdx);
+            appliedIdx = leaderCommittedIdx;
         }
 
+        /* >> append log */
         int currentLastIdx = entries.size() - 1;
-
         if (currentLastIdx < prevLogIdx) {
             log.error("currentLastIdx {} < prevLogIdx {}, may create a hole in entries, ignore", currentLastIdx, prevLogIdx);
 
@@ -308,13 +313,15 @@ public final class NodeStatus {
                 int truncateOffset = currentLastIdx > prevLogIdx ? currentLastIdx - prevLogIdx : 0;
 
                 entries.addAll(residualLogs.subList(truncateOffset, residualLogs.size()));
-                applyEntry(appliedIdx);
 
                 log.info("entries updated: {}", entries);
 
                 context.setNeedRespond(true);
             }
         }
+        /* << append log */
+
+        applyEntry();
 
         /* setup necessary info */
         context.setLastReplicatedLogIdx(entries.size());
@@ -322,13 +329,19 @@ public final class NodeStatus {
         return context;
     }
 
-    private synchronized static void applyEntry(final int appliedToIdx) {
-        if (appliedToIdx >= entries.size()) {
-            log.error("we have a illegal apply issue, appliedToIdx {} >= entries.size() {}, give up", appliedToIdx, entries.size());
+    private synchronized static void applyEntry() {
+        if (leaderCommittedIdx >= entries.size()) {
+            log.error("we have an illegal apply issue, leaderCommittedIdx {} >= entries.size() {}, give up", leaderCommittedIdx, entries.size());
             return;
         }
 
-        appliedIdx = appliedToIdx;
+        if (leaderCommittedIdx <= appliedIdx) {
+            log.info("already applied to {} which is at least as large as {}, ignore", appliedIdx, leaderCommittedIdx);
+            return;
+        }
+
+        /* TODO: exec commands */
+        appliedIdx = leaderCommittedIdx;
     }
 
     public static FollowerResidualEntryInfo genResidualEntryInfoForFollower(final int followerPort) {

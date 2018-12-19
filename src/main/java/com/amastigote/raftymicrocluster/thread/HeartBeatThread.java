@@ -42,8 +42,7 @@ public class HeartBeatThread extends Thread {
 
                                 NodeStatus.FollowerResidualEntryInfo residualLogs = NodeStatus.genResidualEntryInfoForFollower(targetPort);
                                 msg.setEntries(residualLogs.getResidualLogs());
-                                msg.setAppliedIdx(NodeStatus.appliedIdx());
-                                msg.setCommittedIdx(NodeStatus.committedIdx());
+                                msg.setLeaderCommittedIdx(NodeStatus.leaderCommittedIdx());
                                 msg.setPrevLogIdx(residualLogs.getPrevLogIdx());
                                 msg.setPrevLogTerm(residualLogs.getPrevLogTerm());
 
