@@ -212,10 +212,6 @@ public final class NodeStatus {
         applyEntry();
     }
 
-    public static int appliedIdx() {
-        return appliedIdx;
-    }
-
     /* LEADER use only */
     public synchronized static void updateFollowerEntriesState(
             final int followerPort,
@@ -234,13 +230,13 @@ public final class NodeStatus {
     }
 
     /* LEADER use only */
-    public synchronized static void appendEntryFromClient(Collection<LogEntry> entries) {
+    public synchronized static void appendEntryFromClient(List<LogEntry> entries) {
         if (!Role.LEADER.equals(role)) {
             log.error("violet role check in appendEntryFromClient, ignore");
             return;
         }
 
-        entries = entries.parallelStream()
+        entries = entries.stream()
                 .peek(e -> e.setTerm(currentTerm))
                 .collect(Collectors.toCollection(ArrayList::new));
         NodeStatus.entries.addAll(entries);
