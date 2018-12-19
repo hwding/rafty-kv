@@ -141,8 +141,19 @@ public final class NodeStatus {
         role = newRole;
     }
 
-    static void setParamPack(RemoteCommunicationParamPack paramPack) {
+    static void initParamPack(RemoteCommunicationParamPack paramPack) {
         NodeStatus.paramPack = paramPack;
+    }
+
+    static void initFollowerReplicatedIdxMap() {
+        if (Objects.isNull(NodeStatus.paramPack)) {
+            log.error("init followerReplicatedIdxMap after init paramPack");
+            System.exit(-1);
+        }
+
+        paramPack.getCommunicationTargets().forEach(e ->
+                followerReplicatedIdxMap.putIfAbsent(e.getPort(), -1)
+        );
     }
 
     public static RemoteCommunicationParamPack paramPack() {
@@ -217,6 +228,11 @@ public final class NodeStatus {
             final int followerPort,
             final int lastReplicatedLogIdx
     ) {
+        if (!Role.LEADER.equals(role)) {
+            log.error("violet role check in appendEntryFromClient, ignore");
+            return;
+        }
+
         final int oldLastReplicatedLogIdx = followerReplicatedIdxMap.getOrDefault(followerPort, -1);
 
         if (oldLastReplicatedLogIdx > lastReplicatedLogIdx) {
@@ -242,17 +258,6 @@ public final class NodeStatus {
         NodeStatus.entries.addAll(entries);
     }
 
-    /* LEADER use only */
-    public synchronized static void appendEntryFromCLient(final LogEntry entry) {
-        if (!Role.LEADER.equals(role)) {
-            log.error("violet role check in appendEntryFromClient, ignore");
-            return;
-        }
-
-        entry.setTerm(currentTerm);
-        NodeStatus.entries.add(entry);
-    }
-
     /* FOLLOWER use only */
     public synchronized static FollowerAppendEntryResultContext appendEntry(
             final List<LogEntry> residualLogs,
@@ -264,36 +269,35 @@ public final class NodeStatus {
 
         if (!Role.FOLLOWER.equals(role)) {
             log.error("violet role check in appendEntry, ignore");
+
             context.setNeedRespond(false);
             return context;
         }
 
-        if (Objects.isNull(residualLogs) || residualLogs.isEmpty()) {
-            log.info("simple heartbeat without entries, no appending is needed");
+        if ((Objects.isNull(residualLogs) || residualLogs.isEmpty()) && appliedIdx == leaderCommittedIdx) {
+            log.info("simple heartbeat without entries and new apply idx, do nothing");
+
             context.setNeedRespond(false);
             return context;
         }
 
-        /* simply update the leaderCommittedIdx */
-        if (NodeStatus.leaderCommittedIdx > leaderCommittedIdx) {
-            log.error("we have failed a constraint check which NodeStatus.leaderCommittedIdx {} > leaderCommittedIdx {}, try recovering by resetting related val", NodeStatus.leaderCommittedIdx, leaderCommittedIdx);
-        }
-        NodeStatus.leaderCommittedIdx = leaderCommittedIdx;
+        if ((Objects.isNull(residualLogs) || residualLogs.isEmpty()) && appliedIdx != leaderCommittedIdx) {
+            log.info("no entries to append but new leader apply idx detected");
 
-        if (appliedIdx > leaderCommittedIdx) {
-            log.error("we have failed a constraint check which appliedIdx {} > leaderCommittedIdx {}, try recovering by resetting related val", appliedIdx, leaderCommittedIdx);
-            appliedIdx = leaderCommittedIdx;
+            applyEntry(leaderCommittedIdx);
+
+            context.setNeedRespond(false);
+            return context;
         }
 
         /* >> append log */
         int currentLastIdx = entries.size() - 1;
         if (currentLastIdx < prevLogIdx) {
-            log.error("currentLastIdx {} < prevLogIdx {}, may create a hole in entries, ignore", currentLastIdx, prevLogIdx);
+            log.error("currentLastIdx {} < prevLogIdx {}, may create a hole in entries, ignore appending but inform leader", currentLastIdx, prevLogIdx);
 
-            context.setNeedRespond(false);
+            context.setNeedRespond(true);
         } else {
-            int currentPrevLogTerm = entries.get(prevLogIdx).getTerm();
-            if (currentPrevLogTerm != prevLogTerm) {
+            if (prevLogIdx != -1 && entries.get(prevLogIdx).getTerm() != prevLogTerm) {
                 log.warn("we have a log consistent issue, remove old log at {}", prevLogIdx);
 
                 /* do nothing but truncate current entries from the prev entry */
@@ -301,9 +305,9 @@ public final class NodeStatus {
 
                 context.setNeedRespond(true);
             } else if (currentLastIdx >= prevLogIdx + residualLogs.size()) {
-                log.warn("current entries covers the residual entries, ignore");
+                log.warn("current entries covers the residual entries, ignore appending but inform leader");
 
-                context.setNeedRespond(false);
+                context.setNeedRespond(true);
             } else {
                 /* truncate residual entries to currentLastIdx */
                 int truncateOffset = currentLastIdx > prevLogIdx ? currentLastIdx - prevLogIdx : 0;
@@ -317,14 +321,31 @@ public final class NodeStatus {
         }
         /* << append log */
 
-        applyEntry();
+        applyEntry(leaderCommittedIdx);
 
         /* setup necessary info */
-        context.setLastReplicatedLogIdx(entries.size());
+        context.setLastReplicatedLogIdx(entries.size() - 1);
 
         return context;
     }
 
+    /* FOLLOWER use only, wrapper for applyEntry() */
+    private synchronized static void applyEntry(int newLeaderCommittedIdx) {
+        if (!Role.FOLLOWER.equals(role)) {
+            log.error("violet role check in applyEntry, ignore");
+            return;
+        }
+
+        /* simply update the leaderCommittedIdx */
+        if (leaderCommittedIdx > newLeaderCommittedIdx) {
+            log.error("we have failed a constraint check which leaderCommittedIdx {} > newLeaderCommittedIdx {}, try recovering by resetting related val", leaderCommittedIdx, newLeaderCommittedIdx);
+        }
+        leaderCommittedIdx = newLeaderCommittedIdx;
+
+        applyEntry();
+    }
+
+    /* LEADER direct use only, but do not do role check */
     private synchronized static void applyEntry() {
         if (leaderCommittedIdx >= entries.size()) {
             log.error("we have an illegal apply issue, leaderCommittedIdx {} >= entries.size() {}, give up", leaderCommittedIdx, entries.size());
@@ -338,6 +359,7 @@ public final class NodeStatus {
 
         /* TODO: exec commands */
         appliedIdx = leaderCommittedIdx;
+        log.info("local entries applied to {}", appliedIdx);
     }
 
     public static FollowerResidualEntryInfo genResidualEntryInfoForFollower(final int followerPort) {

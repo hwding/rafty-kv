@@ -39,6 +39,7 @@ public class HeartBeatThread extends Thread {
                                 msg.setMsgType(MsgType.HEARTBEAT);
                                 msg.setRpcAnalogType(MsgType.RpcAnalogType.REQ);
                                 msg.setTerm(NodeStatus.currentTerm());
+                                msg.setResponseToPort(NodeStatus.nodePort());
 
                                 NodeStatus.FollowerResidualEntryInfo residualLogs = NodeStatus.genResidualEntryInfoForFollower(targetPort);
                                 msg.setEntries(residualLogs.getResidualLogs());

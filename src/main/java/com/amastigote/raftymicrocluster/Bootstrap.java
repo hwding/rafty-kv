@@ -64,7 +64,8 @@ public class Bootstrap {
                 .collect(Collectors.toList());
 
         RemoteCommunicationParamPack paramPack = new RemoteCommunicationParamPack(communicationTargets);
-        NodeStatus.setParamPack(paramPack);
+        NodeStatus.initParamPack(paramPack);
+        NodeStatus.initFollowerReplicatedIdxMap();
 
         NodeStatus.rstHeartbeatThread(false);
         NodeStatus.rstVoteResWatchdogThread(false);

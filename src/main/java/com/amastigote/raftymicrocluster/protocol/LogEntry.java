@@ -2,6 +2,7 @@ package com.amastigote.raftymicrocluster.protocol;
 
 import lombok.*;
 
+import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -14,7 +15,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-public class LogEntry implements Map.Entry {
+public class LogEntry implements Map.Entry, Serializable {
     private int term;
     private Object key, value;
     private LogCommandType logCommandType;

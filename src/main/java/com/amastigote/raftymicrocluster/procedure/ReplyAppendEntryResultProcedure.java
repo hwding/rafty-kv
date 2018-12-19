@@ -31,8 +31,10 @@ public class ReplyAppendEntryResultProcedure implements Runnable {
     public void run() {
         log.info("ReplyAppendEntryResultProcedure start...");
         GeneralMsg msg = new GeneralMsg();
+        msg.setTerm(NodeStatus.currentTerm());
         msg.setMsgType(MsgType.HEARTBEAT);
         msg.setRpcAnalogType(MsgType.RpcAnalogType.RES);
+        msg.setResponseToPort(NodeStatus.nodePort());
         msg.setLastReplicatedLogIdx(resultContext.getLastReplicatedLogIdx());
 
         Optional<RemoteCommunicationParamPack.RemoteTarget> targetOptional = NodeStatus

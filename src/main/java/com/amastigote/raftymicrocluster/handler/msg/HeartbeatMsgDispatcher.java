@@ -60,6 +60,8 @@ public class HeartbeatMsgDispatcher {
             } else {
                 log.info("no need to respond to current heartbeat");
             }
+
+            return;
         }
 
         /* RES of AppendLogRPC */
