@@ -7,7 +7,7 @@ Using netty's event-driven udp for communication.
 ### Progress
 #### Finished
 - Basic leader election/reelection
-#### Under Testing
+#### Ongoing
 - Log replication
 #### Todo
 - Client interaction
