@@ -44,7 +44,6 @@ public class LogEntry implements Map.Entry, Serializable {
 
     public enum LogCommandType {
         PUT,
-        GET,
         REMOVE
     }
 }

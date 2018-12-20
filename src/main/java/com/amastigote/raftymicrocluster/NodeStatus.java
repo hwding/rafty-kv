@@ -31,6 +31,8 @@ public final class NodeStatus {
     private static Thread voteResWatchdogThread;
     private static Thread heartBeatWatchdogThread;
 
+    private static Storage storage = new Storage();
+
     private static volatile int currentTerm = 0;
 
     /* refer to com.amastigote.raftymicrocluster.protocol.GeneralMsg.responseToPort, voted for candidateId */
@@ -124,7 +126,8 @@ public final class NodeStatus {
 
     public static synchronized void transferRoleTo(Role newRole) {
         if ((!Role.CANDIDATE.equals(NodeStatus.role)) && Role.CANDIDATE.equals(newRole)) {
-            log.info("role transfer to {}, reset vote counter", Role.CANDIDATE.toString());
+            log.info("role transfer to {}, reset vote counter", newRole);
+            rstVoteCnt(1);
         }
 
         if (role.equals(newRole)) {
@@ -164,7 +167,7 @@ public final class NodeStatus {
         return ++voteCnt;
     }
 
-    public static synchronized void rstVoteCnt(int newValue) {
+    private static synchronized void rstVoteCnt(int newValue) {
         voteCnt = newValue;
     }
 
@@ -178,6 +181,10 @@ public final class NodeStatus {
 
     public static Role role() {
         return role;
+    }
+
+    public static Storage storage() {
+        return storage;
     }
 
     public static synchronized void voteFor(int candidateId) {
@@ -229,7 +236,7 @@ public final class NodeStatus {
             final int lastReplicatedLogIdx
     ) {
         if (!Role.LEADER.equals(role)) {
-            log.error("violet role check in appendEntryFromClient, ignore");
+            log.error("violet role check in updateFollowerEntriesState, ignore");
             return;
         }
 
@@ -357,7 +364,11 @@ public final class NodeStatus {
             return;
         }
 
-        /* TODO: exec commands */
+        /* >> do apply to storage */
+        List<LogEntry> entriesToApply = entries.subList(appliedIdx + 1, leaderCommittedIdx + 1);
+        storage.applyEntryCommands(entriesToApply);
+        /* << do apply to storage */
+
         appliedIdx = leaderCommittedIdx;
         log.info("local entries applied to {}", appliedIdx);
     }

@@ -24,7 +24,6 @@ public class ReElectionInitiateProcedure extends Thread {
             NodeStatus.transferRoleTo(Role.CANDIDATE);
 
             /* candidate should first vote for itself */
-            NodeStatus.rstVoteCnt(1);
             NodeStatus.rstVotedFor();
         }
         log.info("term increased to " + newTerm);
