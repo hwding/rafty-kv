@@ -2,18 +2,26 @@
 ![](https://img.shields.io/badge/Powered%20by-raft%20protocol-orange.svg?style=flat-square)  
 A local, micro & distributed replica state machine(RSM) cluster **for learning** which implements *raft consensus algorithm* in a fully asynchronous way and does simple log replication.
 ### Introduction
-Using netty's event-driven udp for communication.
+#### Implementation
+Using netty's event-driven udp for communication among nodes inside the cluster.  
+
+#### Related readings
+- [CONSENSUS: BRIDGING THEORY AND PRACTICE  
+D Ongaro - 2014 - stanford.edu](https://web.stanford.edu/~ouster/cgi-bin/papers/OngaroPhD.pdf)
+- [In search of an understandable consensus algorithm.  
+D Ongaro, JK Ousterhout - USENIX Annual Technical Conference, 2014 - usenix.org](https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf)
+- [MIT PDOS 6.824 - Spring 2018](https://pdos.csail.mit.edu/6.824/)
 
 ### Progress
 #### Finished
-- Basic leader election/reelection
 #### Ongoing
-- Log replication
-- Client interaction
+- leader election/reelection
+- log replication
+- client interaction
+
 #### Todo
-- Safety
-- Persisted states & recovery
-- Leadership transfer extension
-- Cluster membership changes
-- Log compaction
-- Lock free
+- safety
+- persisted states & recovery
+- cluster membership changes
+- leadership transfer extension
+- log compaction
