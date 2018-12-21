@@ -48,7 +48,9 @@ public final class NodeStatus {
     private static Map<Integer, Integer> followerReplicatedIdxMap;
     /* << LEADER only */
 
-    private static List<LogEntry> entries = new ArrayList<>();
+    private static List<LogEntry> entries = new ArrayList<LogEntry>() {{
+        add(new LogEntry("__INIT", null, LogEntry.LogCommandType.REMOVE));
+    }};
 
     /* global(remote): last idx of entries which is replicated to the majority of the cluster (committed)
      * is the criteria of 'is it safe to apply?' */
@@ -125,11 +127,6 @@ public final class NodeStatus {
     }
 
     public static synchronized void transferRoleTo(Role newRole) {
-        if ((!Role.CANDIDATE.equals(NodeStatus.role)) && Role.CANDIDATE.equals(newRole)) {
-            log.info("role transfer to {}, reset vote counter", newRole);
-            rstVoteCnt(1);
-        }
-
         if (role.equals(newRole)) {
             log.warn("unnecessary role transfer: already {}", role.toString());
             return;
@@ -138,6 +135,16 @@ public final class NodeStatus {
         if (role.equals(Role.FOLLOWER) && newRole.equals(Role.LEADER)) {
             log.error("illegal role transfer: {} -> {}", Role.FOLLOWER.toString(), Role.LEADER.toString());
             System.exit(-1);
+        }
+
+        if ((!Role.CANDIDATE.equals(NodeStatus.role)) && Role.CANDIDATE.equals(newRole)) {
+            log.info("role transfer to {}, reset vote counter", newRole);
+            rstVoteCnt();
+        }
+
+        if ((!Role.LEADER.equals(NodeStatus.role)) && Role.LEADER.equals(newRole)) {
+            log.info("role transfer to {}, reset followerReplicatedIdxMap to {}", newRole, entries.size());
+            initFollowerReplicatedIdxMap(entries.size() - 1);
         }
 
         log.warn("role transfer applied: {} -> {}", role.toString(), newRole.toString());
@@ -149,13 +156,17 @@ public final class NodeStatus {
     }
 
     static void initFollowerReplicatedIdxMap() {
+        initFollowerReplicatedIdxMap(-1);
+    }
+
+    private static void initFollowerReplicatedIdxMap(int newVal) {
         if (Objects.isNull(NodeStatus.paramPack)) {
             log.error("init followerReplicatedIdxMap after init paramPack");
             System.exit(-1);
         }
 
         paramPack.getCommunicationTargets().forEach(e ->
-                followerReplicatedIdxMap.putIfAbsent(e.getPort(), -1)
+                followerReplicatedIdxMap.put(e.getPort(), newVal)
         );
     }
 
@@ -167,8 +178,8 @@ public final class NodeStatus {
         return ++voteCnt;
     }
 
-    private static synchronized void rstVoteCnt(int newValue) {
-        voteCnt = newValue;
+    private static synchronized void rstVoteCnt() {
+        voteCnt = 1;
     }
 
     public static synchronized void rstVotedFor() {
@@ -243,11 +254,11 @@ public final class NodeStatus {
         final int oldLastReplicatedLogIdx = followerReplicatedIdxMap.getOrDefault(followerPort, -1);
 
         if (oldLastReplicatedLogIdx > lastReplicatedLogIdx) {
-            log.warn("violet idx constraint: oldLastReplicatedLogIdx {} > lastReplicatedLogIdx {}, ignore", oldLastReplicatedLogIdx, lastReplicatedLogIdx);
+            log.warn("follower {}'s lastReplicatedLogIdx may need fix from {} to {} due to inconsistency", followerPort, oldLastReplicatedLogIdx, lastReplicatedLogIdx);
         } else if (oldLastReplicatedLogIdx < lastReplicatedLogIdx) {
             log.info("followerReplicatedIdxMap updated for {}: {} -> {}", followerPort, oldLastReplicatedLogIdx, lastReplicatedLogIdx);
-            followerReplicatedIdxMap.put(followerPort, lastReplicatedLogIdx);
         }
+        followerReplicatedIdxMap.put(followerPort, lastReplicatedLogIdx);
 
         recalculateCommittedIdx();
     }
@@ -278,6 +289,14 @@ public final class NodeStatus {
             log.error("violet role check in appendEntry, ignore");
 
             context.setNeedRespond(false);
+            return context;
+        }
+
+        if (prevLogIdx > entries.size() - 1) {
+            log.warn("seems that we lost some of the entries, report issue");
+
+            context.setLastReplicatedLogIdx(entries.size() - 1);
+            context.setNeedRespond(true);
             return context;
         }
 
@@ -381,13 +400,13 @@ public final class NodeStatus {
         }
 
         FollowerResidualEntryInfo.FollowerResidualEntryInfoBuilder builder = FollowerResidualEntryInfo.builder();
+        builder.prevLogIdx(oldLastReplicatedLogIdx);
+
         if (oldLastReplicatedLogIdx < entries.size() - 1) {
 
             /* setup necessary info */
             if (oldLastReplicatedLogIdx >= 0) {
-                builder
-                        .prevLogIdx(oldLastReplicatedLogIdx)
-                        .prevLogTerm(entries.get(oldLastReplicatedLogIdx).getTerm());
+                builder.prevLogTerm(entries.get(oldLastReplicatedLogIdx).getTerm());
             }
         } else {
             log.info("follower {} already up-to-date as idx {}", followerPort, oldLastReplicatedLogIdx);
