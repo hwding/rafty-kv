@@ -317,6 +317,7 @@ public final class NodeStatus {
         }
 
         /* >> append log */
+        boolean safeToApply = false;
         int currentLastIdx = entries.size() - 1;
         if (currentLastIdx < prevLogIdx) {
             log.error("currentLastIdx {} < prevLogIdx {}, may create a hole in entries, ignore appending but inform leader", currentLastIdx, prevLogIdx);
@@ -333,6 +334,7 @@ public final class NodeStatus {
             } else if (currentLastIdx >= prevLogIdx + residualLogs.size()) {
                 log.warn("current entries covers the residual entries, ignore appending but inform leader");
 
+                safeToApply = true;
                 context.setNeedRespond(true);
             } else {
                 /* truncate residual entries to currentLastIdx */
@@ -342,12 +344,16 @@ public final class NodeStatus {
 
                 log.info("entries updated: {}", entries);
 
+                safeToApply = true;
                 context.setNeedRespond(true);
             }
         }
         /* << append log */
 
-        applyEntry(leaderCommittedIdx);
+        /* only do apply when there's no consistency issue */
+        if (safeToApply) {
+            applyEntry(leaderCommittedIdx);
+        }
 
         /* setup necessary info */
         context.setLastReplicatedLogIdx(entries.size() - 1);
