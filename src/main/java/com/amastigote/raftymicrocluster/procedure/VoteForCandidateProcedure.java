@@ -18,33 +18,53 @@ import java.util.Optional;
  * @author: hwding
  * @date: 2018/11/29
  */
-@SuppressWarnings("JavaDoc")
+@SuppressWarnings({"JavaDoc", "Duplicates"})
 @Slf4j(topic = "[VOTE FOR CANDIDATE PROC]")
 public class VoteForCandidateProcedure extends Thread {
 
     private int candidatePort;
     private int candidateTerm;
+    private int candidateLastReplicatedLogIdx;
+    private int candidateLastReplicatedLogTerm;
 
-    public VoteForCandidateProcedure(int candidatePort, int candidateTerm) {
+    public VoteForCandidateProcedure(
+            int candidatePort,
+            int candidateTerm,
+            int candidateLastReplicatedLogIdx,
+            int candidateLastReplicatedLogTerm) {
         this.candidatePort = candidatePort;
         this.candidateTerm = candidateTerm;
+        this.candidateLastReplicatedLogIdx = candidateLastReplicatedLogIdx;
+        this.candidateLastReplicatedLogTerm = candidateLastReplicatedLogTerm;
     }
 
     @Override
     public void run() {
         log.info("VoteForCandidateProcedure start...");
 
-        int votedFor = NodeStatus.votedFor();
-
-        if (votedFor != 0) {
-            log.warn("has voted for {} in term {}, give up", votedFor, candidateTerm);
-            return;
-        }
-
         synchronized (NodeStatus.class) {
-            votedFor = NodeStatus.votedFor();
 
-            /* double check */
+            /* >> election safety check */
+            final int currentLastReplicatedLogIdx = NodeStatus.lastReplicatedLogIdx();
+            final int currentLastReplicatedLogTerm = NodeStatus.lastReplicatedLogTerm();
+
+            if (currentLastReplicatedLogTerm > candidateLastReplicatedLogTerm) {
+                log.info("candidate failed safety (up-to-date) check in voter, give up: " +
+                                "currentLastReplicatedLogTerm {} > candidateLastReplicatedLogTerm {}",
+                        currentLastReplicatedLogTerm, candidateLastReplicatedLogTerm);
+                return;
+            }
+
+            if (currentLastReplicatedLogIdx > candidateLastReplicatedLogIdx) {
+                log.info("candidate failed safety (up-to-date) check in voter, give up: " +
+                                "currentLastReplicatedLogIdx {} > candidateLastReplicatedLogIdx {}",
+                        currentLastReplicatedLogIdx, candidateLastReplicatedLogIdx);
+                return;
+            }
+            /* >> election safety check */
+
+            int votedFor = NodeStatus.votedFor();
+
             if (votedFor != 0) {
                 log.warn("has voted for {} in term {}, give up", votedFor, candidateTerm);
                 return;

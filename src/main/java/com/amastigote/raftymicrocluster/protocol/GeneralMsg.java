@@ -36,6 +36,7 @@ public class GeneralMsg implements Serializable {
     /* << AppendEntryMsg only (pong) */
 
     /* >> RequestVoteMsg only */
+    private int lastLogIdx = -1;
     private int lastLogTerm = -1;
     /* << RequestVoteMsg only */
 }

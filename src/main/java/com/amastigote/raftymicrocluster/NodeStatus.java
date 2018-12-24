@@ -225,6 +225,14 @@ public final class NodeStatus {
         return leaderCommittedIdx;
     }
 
+    public static synchronized int lastReplicatedLogIdx() {
+        return entries.isEmpty() ? -1 : entries.size() - 1;
+    }
+
+    public static synchronized int lastReplicatedLogTerm() {
+        return entries.isEmpty() ? -1 : entries.get(lastReplicatedLogIdx()).getTerm();
+    }
+
     /* LEADER use only */
     private static synchronized void recalculateCommittedIdx() {
         List<Integer> replicatedIdx = new ArrayList<>(followerReplicatedIdxMap.values());

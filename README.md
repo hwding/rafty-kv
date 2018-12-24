@@ -3,7 +3,7 @@
 A local, micro & distributed replica state machine(RSM) cluster **for learning** which implements *raft consensus algorithm* in a fully asynchronous way and does simple log replication.
 ### Introduction
 #### Implementation
-Using netty's event-driven udp for communication among nodes inside the cluster.  
+Using netty's event-driven udp for async communication among nodes inside the cluster.  
 
 #### Related readings
 - [CONSENSUS: BRIDGING THEORY AND PRACTICE  
@@ -14,14 +14,16 @@ D Ongaro, JK Ousterhout - USENIX Annual Technical Conference, 2014 - usenix.org]
 
 ### Progress
 #### Finished
+- Leader election/reelection (without restriction)
+- Log replication
+
 #### Ongoing
-- leader election/reelection
-- log replication
-- client interaction
+- Safety
+- Client interaction
 
 #### Todo
-- safety
-- persisted states & recovery
-- cluster membership changes
-- leadership transfer extension
-- log compaction
+
+- Persisted states & recovery
+- Cluster membership changes
+- Leadership transfer extension
+- Log compaction

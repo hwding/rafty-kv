@@ -17,7 +17,7 @@ import java.io.ObjectOutputStream;
  * @author: hwding
  * @date: 2018/11/29
  */
-@SuppressWarnings("JavaDoc")
+@SuppressWarnings({"JavaDoc", "Duplicates"})
 @Slf4j(topic = "[REQUEST VOTE PROC]")
 public class RequestVoteProcedure extends Thread {
 
@@ -31,6 +31,9 @@ public class RequestVoteProcedure extends Thread {
             msg.setRpcAnalogType(MsgType.RpcAnalogType.REQ);
             msg.setTerm(NodeStatus.currentTerm());
             msg.setResponseToPort(NodeStatus.nodePort());
+
+            msg.setLastLogIdx(NodeStatus.lastReplicatedLogIdx());
+            msg.setLastLogTerm(NodeStatus.lastReplicatedLogTerm());
 
             try {
                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();

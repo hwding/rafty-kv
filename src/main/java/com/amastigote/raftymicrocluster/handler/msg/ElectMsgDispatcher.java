@@ -37,7 +37,12 @@ public final class ElectMsgDispatcher {
 
                     log.info("step down from LEADER and vote for newer term candidate");
                 }
-                new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
+                new VoteForCandidateProcedure(
+                        msg.getResponseToPort(),
+                        msg.getTerm(),
+                        msg.getLastLogIdx(),
+                        msg.getLastLogTerm()
+                ).start();
                 return;
             }
 
@@ -53,7 +58,12 @@ public final class ElectMsgDispatcher {
 
                         heartbeatWatchdogResetInvoker.apply(false);
                     }
-                    new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
+                    new VoteForCandidateProcedure(
+                            msg.getResponseToPort(),
+                            msg.getTerm(),
+                            msg.getLastLogIdx(),
+                            msg.getLastLogTerm()
+                    ).start();
 
                     log.info("step down from CANDIDATE and vote for newer term candidate");
                     return;
@@ -68,7 +78,12 @@ public final class ElectMsgDispatcher {
                 /* the follower should remain its state as long as it receives valid RPCs from leader OR **candidate** */
                 heartbeatWatchdogResetInvoker.apply(true);
 
-                new VoteForCandidateProcedure(msg.getResponseToPort(), msg.getTerm()).start();
+                new VoteForCandidateProcedure(
+                        msg.getResponseToPort(),
+                        msg.getTerm(),
+                        msg.getLastLogIdx(),
+                        msg.getLastLogTerm()
+                ).start();
             }
             return;
         }
