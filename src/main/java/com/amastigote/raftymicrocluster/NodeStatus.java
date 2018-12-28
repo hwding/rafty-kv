@@ -241,12 +241,17 @@ public final class NodeStatus {
         log.info("we have replicated idx {} currently in cluster", replicatedIdx);
 
         replicatedIdx.sort(null);
-        int clusterCommittedIdx = replicatedIdx.get(majorityNodeCnt() - 1);
+        int majorityReplicatedIdx = replicatedIdx.get(majorityNodeCnt() - 1);
+        LogEntry lastMajorityReplicatedEntry = entries.get(majorityReplicatedIdx);
 
-        log.info("we have recalculate the clusterCommittedIdx as {}", clusterCommittedIdx);
-        leaderCommittedIdx = clusterCommittedIdx;
+        if (lastMajorityReplicatedEntry.getTerm() < currentTerm) {
+            log.info("previous term's log can only be committed indirectly, give up applying");
+        } else if (leaderCommittedIdx < majorityReplicatedIdx) {
+            log.info("we have recalculate a new majorityReplicatedIdx as {}, ready to commit and apply", majorityReplicatedIdx);
 
-        applyEntry();
+            leaderCommittedIdx = majorityReplicatedIdx;
+            applyEntry();
+        }
     }
 
     /* LEADER use only */
