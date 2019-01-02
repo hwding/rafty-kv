@@ -20,10 +20,10 @@ D Ongaro, JK Ousterhout - USENIX Annual Technical Conference, 2014 - usenix.org]
 #### Ongoing
 - Safety
 - Client interaction
+- Persisted states & recovery
 
 #### Todo
 
-- Persisted states & recovery
 - Cluster membership changes
 - Leadership transfer extension
 - Log compaction

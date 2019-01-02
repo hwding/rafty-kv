@@ -22,6 +22,9 @@ import java.util.stream.Collectors;
 @Slf4j(topic = "[NODE STATUS]")
 public final class NodeStatus {
 
+    public static final int INIT_CUR_TERM = 0;
+    public static final int INIT_VOTED_FOR = 0;
+
     private static int nodePort;
     private static Role role = Role.FOLLOWER;
 
@@ -33,10 +36,10 @@ public final class NodeStatus {
 
     private static Storage storage = new Storage();
 
-    private static volatile int currentTerm = 0;
+    private static volatile int currentTerm = INIT_CUR_TERM;
 
     /* refer to com.amastigote.raftymicrocluster.protocol.GeneralMsg.responseToPort, voted for candidateId */
-    private static volatile int votedFor = -1;
+    private static volatile int votedFor = INIT_VOTED_FOR;
 
     private static volatile int voteCnt = 0;
 
@@ -286,6 +289,12 @@ public final class NodeStatus {
         entries = entries.stream()
                 .peek(e -> e.setTerm(currentTerm))
                 .collect(Collectors.toCollection(ArrayList::new));
+
+        appendEntryUnaltered(entries);
+    }
+
+    /* recover from persisted state or internal call only */
+    synchronized static void appendEntryUnaltered(List<LogEntry> entries) {
         NodeStatus.entries.addAll(entries);
     }
 
