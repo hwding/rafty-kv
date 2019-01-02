@@ -18,7 +18,7 @@ import static com.amastigote.raftymicrocluster.protocol.LogEntry.LogCommandType;
  */
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "PERSIST")
-public final class PersistManager {
+final class PersistManager {
     private final static String CONFIGURATION_PREFIX = "com.amastigote.raftymicrocluster.";
     private final static String CONFIGURATION_FILE = "rafty-persist.properties";
     private final static String KEY_END_PERSIST_DIR = "persistDir";
@@ -28,7 +28,7 @@ public final class PersistManager {
     private final Properties properties = new Properties();
     private boolean recoverable = true;
 
-    public PersistManager() {
+    PersistManager() {
         try {
             loadProperties();
 
@@ -37,18 +37,22 @@ public final class PersistManager {
             File file = new File(persistDir, String.valueOf(NodeStatus.nodePort()));
             if (!file.exists()) {
                 boolean created = file.createNewFile();
+
                 if (!created) {
                     throw new IOException("persist file failed to create");
                 }
 
+                log.info("persist file newly created");
                 recoverable = false;
             }
 
             RandomAccessFile persistFile = new RandomAccessFile(file, "rws");
-            log.info("persist file newly created");
 
             stateSerializer = new AppendableStateSerializer(persistFile);
-            stateSerializer.initFile();
+
+            if (!recoverable) {
+                stateSerializer.initFile();
+            }
         } catch (IOException e) {
             log.error("persist file failed to init", e);
             System.exit(-1);
@@ -77,7 +81,7 @@ public final class PersistManager {
         }
     }
 
-    public boolean recover() {
+    boolean recover() {
         if (!recoverable) {
             return false;
         }
@@ -103,7 +107,7 @@ public final class PersistManager {
 
     void persistCurrentTerm(int term) {
         try {
-            stateSerializer.updateCurTerm(term);
+            stateSerializer.persistCurTerm(term);
         } catch (IOException e) {
             log.warn("failed to persist curTerm {}", term);
         }
@@ -111,9 +115,17 @@ public final class PersistManager {
 
     void persistVotedFor(int votedFor) {
         try {
-            stateSerializer.updateVotedFor(votedFor);
+            stateSerializer.persistVotedFor(votedFor);
         } catch (IOException e) {
             log.warn("failed to persist votedFor {}", votedFor);
+        }
+    }
+
+    void persistLogEntry(LogEntry entry) {
+        try {
+            stateSerializer.persistLogEntry(entry);
+        } catch (IOException e) {
+            log.warn("failed to persist log entry {}", entry);
         }
     }
 
@@ -139,40 +151,39 @@ public final class PersistManager {
      */
     private static final class AppendableStateSerializer {
         private final Object lock = new Object();
-        private final ByteArrayOutputStream byteArrOutStream = new ByteArrayOutputStream();
-        private final ObjectOutputStream objOutStream = new ObjectOutputStream(byteArrOutStream);
+
         private final byte OP_PUT = 0x00;
         private final byte OP_RMV = 0x0F;
         private RandomAccessFile pFile;
 
-        private AppendableStateSerializer(RandomAccessFile pFile) throws IOException {
+        private AppendableStateSerializer(RandomAccessFile pFile) {
             this.pFile = pFile;
         }
 
         private void initFile() throws IOException {
-            log.warn("init persist file, this could imply a prev persist failure...");
+            log.warn("init persist file, this could imply a former persist failure...");
             synchronized (lock) {
 
                 /* truncate to empty */
                 pFile.setLength(0);
 
                 /* write header with init val */
-                updateCurTerm(NodeStatus.INIT_CUR_TERM);
-                updateVotedFor(NodeStatus.INIT_VOTED_FOR);
+                persistCurTerm(NodeStatus.INIT_CUR_TERM);
+                persistVotedFor(NodeStatus.INIT_VOTED_FOR);
 
                 log.debug("new persist file init to pos {}", pFile.length());
             }
             log.info("persist file init ok");
         }
 
-        void updateCurTerm(int newCurTerm) throws IOException {
+        void persistCurTerm(int newCurTerm) throws IOException {
             synchronized (lock) {
                 pFile.seek(0);
                 pFile.writeInt(newCurTerm);
             }
         }
 
-        void updateVotedFor(int newVotedFor) throws IOException {
+        void persistVotedFor(int newVotedFor) throws IOException {
             synchronized (lock) {
                 pFile.seek(4);
                 pFile.writeInt(newVotedFor);
@@ -188,14 +199,11 @@ public final class PersistManager {
         }
 
         int recoverInt(int offset) throws IOException {
-            byte[] buf = new byte[4];
 
             synchronized (lock) {
                 pFile.seek(offset);
-                pFile.read(buf);
+                return pFile.readInt();
             }
-
-            return recoverInt(buf, 0);
         }
 
         @SuppressWarnings({"PointlessArithmeticExpression", "PointlessBitwiseExpression"})
@@ -211,9 +219,9 @@ public final class PersistManager {
             int readLen;
 
             synchronized (lock) {
-                pFile.seek(5);
+                pFile.seek(8);
                 while (true) {
-                    byte[] partEntryHead = new byte[1 + 4 + 8];
+                    byte[] partEntryHead = new byte[1 + 4 + 4];
 
                     readLen = pFile.read(partEntryHead);
                     if (readLen <= 0) {
@@ -278,7 +286,7 @@ public final class PersistManager {
         }
 
         @SuppressWarnings({"Duplicates", "PointlessArithmeticExpression", "PointlessBitwiseExpression"})
-        void appendLogEntry(LogEntry entry) throws IOException {
+        void persistLogEntry(LogEntry entry) throws IOException {
             LogCommandType commandType = entry.getLogCommandType();
             Object key = entry.getKey();
             Object val = entry.getValue();
@@ -287,17 +295,19 @@ public final class PersistManager {
             byte[] buf;
             byte op = commandType.equals(LogCommandType.PUT) ? OP_PUT : OP_RMV;
 
-            byteArrOutStream.reset();
-            objOutStream.reset();
+            ByteArrayOutputStream byteArrOutStream = new ByteArrayOutputStream();
+            ObjectOutputStream objOutStream = new ObjectOutputStream(byteArrOutStream);
 
+            objOutStream.flush();
             objOutStream.writeObject(key);
             byte[] keyBytes = byteArrOutStream.toByteArray();
             int keyLen = keyBytes.length;
 
             if (commandType.equals(LogCommandType.PUT)) {
-                byteArrOutStream.reset();
-                objOutStream.reset();
+                byteArrOutStream = new ByteArrayOutputStream();
+                objOutStream = new ObjectOutputStream(byteArrOutStream);
 
+                objOutStream.flush();
                 objOutStream.writeObject(val);
                 byte[] valBytes = byteArrOutStream.toByteArray();
                 int valLen = valBytes.length;
@@ -324,9 +334,9 @@ public final class PersistManager {
                 buf[9 + keyLen + 2] = (byte) ((valLen >>> 8) & 0xFF);
                 buf[9 + keyLen + 3] = (byte) ((valLen >>> 0) & 0xFF);
 
-                System.arraycopy(valBytes, 0, buf, 5 + keyLen + 4, valLen);
+                System.arraycopy(valBytes, 0, buf, 9 + keyLen + 4, valLen);
             } else {
-                int bufLen = 1 + 4 + keyLen;
+                int bufLen = 1 + 4 + 4 + keyLen;
                 buf = new byte[bufLen];
 
                 buf[0] = op;
