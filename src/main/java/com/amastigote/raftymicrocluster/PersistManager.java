@@ -214,6 +214,14 @@ final class PersistManager {
                     + (bytes[offset + 3] << 0);
         }
 
+        @SuppressWarnings({"PointlessArithmeticExpression", "PointlessBitwiseExpression"})
+        void writeInt(byte[] des, int offset, int data) {
+            des[offset + 0] = (byte) ((data >>> 24) & 0xFF);
+            des[offset + 1] = (byte) ((data >>> 16) & 0xFF);
+            des[offset + 2] = (byte) ((data >>> 8) & 0xFF);
+            des[offset + 3] = (byte) ((data >>> 0) & 0xFF);
+        }
+
         List<LogEntry> recoverEntries() throws Exception {
             List<LogEntry> entries = new ArrayList<>();
             int readLen;
@@ -285,7 +293,7 @@ final class PersistManager {
             return entries;
         }
 
-        @SuppressWarnings({"Duplicates", "PointlessArithmeticExpression", "PointlessBitwiseExpression"})
+        @SuppressWarnings({"Duplicates"})
         void persistLogEntry(LogEntry entry) throws IOException {
             LogCommandType commandType = entry.getLogCommandType();
             Object key = entry.getKey();
@@ -317,22 +325,12 @@ final class PersistManager {
 
                 buf[0] = op;
 
-                buf[1] = (byte) ((term >>> 24) & 0xFF);
-                buf[2] = (byte) ((term >>> 16) & 0xFF);
-                buf[3] = (byte) ((term >>> 8) & 0xFF);
-                buf[4] = (byte) ((term >>> 0) & 0xFF);
-
-                buf[5] = (byte) ((keyLen >>> 24) & 0xFF);
-                buf[6] = (byte) ((keyLen >>> 16) & 0xFF);
-                buf[7] = (byte) ((keyLen >>> 8) & 0xFF);
-                buf[8] = (byte) ((keyLen >>> 0) & 0xFF);
+                writeInt(buf, 1, term);
+                writeInt(buf, 5, keyLen);
 
                 System.arraycopy(keyBytes, 0, buf, 9, keyLen);
 
-                buf[9 + keyLen + 0] = (byte) ((valLen >>> 24) & 0xFF);
-                buf[9 + keyLen + 1] = (byte) ((valLen >>> 16) & 0xFF);
-                buf[9 + keyLen + 2] = (byte) ((valLen >>> 8) & 0xFF);
-                buf[9 + keyLen + 3] = (byte) ((valLen >>> 0) & 0xFF);
+                writeInt(buf, 9 + keyLen, valLen);
 
                 System.arraycopy(valBytes, 0, buf, 9 + keyLen + 4, valLen);
             } else {
@@ -341,15 +339,8 @@ final class PersistManager {
 
                 buf[0] = op;
 
-                buf[1] = (byte) ((term >>> 24) & 0xFF);
-                buf[2] = (byte) ((term >>> 16) & 0xFF);
-                buf[3] = (byte) ((term >>> 8) & 0xFF);
-                buf[4] = (byte) ((term >>> 0) & 0xFF);
-
-                buf[5] = (byte) ((keyLen >>> 24) & 0xFF);
-                buf[6] = (byte) ((keyLen >>> 16) & 0xFF);
-                buf[7] = (byte) ((keyLen >>> 8) & 0xFF);
-                buf[8] = (byte) ((keyLen >>> 0) & 0xFF);
+                writeInt(buf, 1, term);
+                writeInt(buf, 5, keyLen);
 
                 System.arraycopy(keyBytes, 0, buf, 9, keyLen);
             }
