@@ -208,10 +208,12 @@ final class PersistManager {
 
         @SuppressWarnings({"PointlessArithmeticExpression", "PointlessBitwiseExpression"})
         int recoverInt(byte[] bytes, int offset) {
-            return (bytes[offset + 0] << 24)
-                    + (bytes[offset + 1] << 16)
-                    + (bytes[offset + 2] << 8)
-                    + (bytes[offset + 3] << 0);
+            byte b0 = bytes[offset + 0];
+            byte b1 = bytes[offset + 1];
+            byte b2 = bytes[offset + 2];
+            byte b3 = bytes[offset + 3];
+
+            return ((b0 & 0xFF) << 24) | ((b1 & 0xFF) << 16) | ((b2 & 0xFF) << 8) | ((b3 & 0xFF) << 0);
         }
 
         @SuppressWarnings({"PointlessArithmeticExpression", "PointlessBitwiseExpression"})
