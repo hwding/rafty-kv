@@ -294,7 +294,7 @@ public final class NodeStatus {
     }
 
     /* recover from persisted state or internal call only */
-    synchronized static void appendEntryUnaltered(List<LogEntry> entries) {
+    public synchronized static void appendEntryUnaltered(List<LogEntry> entries) {
         NodeStatus.entries.addAll(entries);
     }
 
