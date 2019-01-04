@@ -1,5 +1,6 @@
 package com.amastigote.raftymicrocluster;
 
+import com.amastigote.raftymicrocluster.disk.PersistManager;
 import com.amastigote.raftymicrocluster.protocol.LogEntry;
 import com.amastigote.raftymicrocluster.protocol.Role;
 import com.amastigote.raftymicrocluster.thread.HeartBeatThread;
@@ -45,6 +46,8 @@ public final class NodeStatus {
 
     private static RemoteCommunicationParamPack paramPack;
 
+    private static PersistManager persistManager;
+
     /* >> LEADER only
      * CAUTION: non-thread-safe, sync before altering data */
     /* highest idx of entry which replicated to follower */
@@ -66,6 +69,9 @@ public final class NodeStatus {
         NodeStatus.nodePort = nodePort;
         NodeStatus.totalNodeCnt = totalNodeCnt;
         NodeStatus.followerReplicatedIdxMap = new HashMap<>(totalNodeCnt - 1);
+
+        persistManager = PersistManager.getInstance();
+        persistManager.recover();
     }
 
     public static int majorityNodeCnt() {
@@ -290,12 +296,22 @@ public final class NodeStatus {
                 .peek(e -> e.setTerm(currentTerm))
                 .collect(Collectors.toCollection(ArrayList::new));
 
-        appendEntryUnaltered(entries);
+        appendPersistEntryUnaltered(entries);
     }
 
     /* recover from persisted state or internal call only */
     public synchronized static void appendEntryUnaltered(List<LogEntry> entries) {
         NodeStatus.entries.addAll(entries);
+    }
+
+    private synchronized static void appendPersistEntryUnaltered(List<LogEntry> entries) {
+        appendEntryUnaltered(entries);
+        entries.forEach(e -> persistManager.persistLogEntry(e));
+    }
+
+    private synchronized static void truncatePersistEntryUnaltered(int toIdxExclusive) {
+        entries = new ArrayList<>(entries.subList(0, toIdxExclusive));
+        persistManager.truncateLogEntry(toIdxExclusive);
     }
 
     /* FOLLOWER use only */
@@ -350,7 +366,7 @@ public final class NodeStatus {
                 log.warn("we have a log consistent issue, remove old log at {}", prevLogIdx);
 
                 /* do nothing but truncate current entries from the prev entry */
-                entries = new ArrayList<>(entries.subList(0, prevLogIdx));
+                truncatePersistEntryUnaltered(prevLogIdx);
 
                 context.setNeedRespond(true);
             } else if (currentLastIdx >= prevLogIdx + residualLogs.size()) {
@@ -362,7 +378,7 @@ public final class NodeStatus {
                 /* truncate residual entries to currentLastIdx */
                 int truncateOffset = currentLastIdx > prevLogIdx ? currentLastIdx - prevLogIdx : 0;
 
-                entries.addAll(residualLogs.subList(truncateOffset, residualLogs.size()));
+                appendPersistEntryUnaltered(residualLogs.subList(truncateOffset, residualLogs.size()));
 
                 log.info("entries updated: {}", entries);
 

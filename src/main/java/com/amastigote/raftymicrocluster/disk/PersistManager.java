@@ -19,7 +19,7 @@ import java.util.Properties;
  */
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "PERSIST")
-final class PersistManager {
+public final class PersistManager {
     private final static String CONFIGURATION_PREFIX = "com.amastigote.raftymicrocluster.";
     private final static String CONFIGURATION_FILE = "rafty-persist.properties";
     private final static String KEY_END_PERSIST_DIR = "persistDir";
@@ -62,7 +62,7 @@ final class PersistManager {
         }
     }
 
-    static PersistManager getInstance() {
+    public static PersistManager getInstance() {
         return instance;
     }
 
@@ -88,7 +88,7 @@ final class PersistManager {
         }
     }
 
-    boolean recover() {
+    public boolean recover() {
         if (!recoverable) {
             return false;
         }
@@ -116,7 +116,7 @@ final class PersistManager {
         try {
             stateSerializer.persistCurTerm(term);
         } catch (IOException e) {
-            log.warn("failed to persist curTerm {}", term);
+            log.error("failed to persist curTerm {}", term, e);
         }
     }
 
@@ -124,15 +124,15 @@ final class PersistManager {
         try {
             stateSerializer.persistVotedFor(votedFor);
         } catch (IOException e) {
-            log.warn("failed to persist votedFor {}", votedFor);
+            log.error("failed to persist votedFor {}", votedFor, e);
         }
     }
 
-    void persistLogEntry(LogEntry entry) {
+    public void persistLogEntry(LogEntry entry) {
         try {
             stateSerializer.persistLogEntry(entry);
         } catch (IOException e) {
-            log.warn("failed to persist log entry {}", entry);
+            log.error("failed to persist log entry {}", entry, e);
         }
     }
 
