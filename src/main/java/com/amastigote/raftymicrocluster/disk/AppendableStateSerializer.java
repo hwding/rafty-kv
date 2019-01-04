@@ -1,12 +1,16 @@
 package com.amastigote.raftymicrocluster.disk;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.protocol.LogEntry;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author: hwding
@@ -16,8 +20,9 @@ import java.util.List;
  * This is a simple alterable (for term & vote) & appendable (for logs)
  * de/serializer for node state persistent.
  * <p>
- * TODO: A cache is used to make truncate more efficient by
- * saving nearby entry idx location in file to speed up searching
+ * A cache is used to make truncate more efficient by
+ * saving nearby entry idx locations in file as checkpoints
+ * to speed up searching.
  * <p>
  * Data is persisted in byte arr, format (unit is byte):
  * <p>
@@ -39,11 +44,25 @@ import java.util.List;
 final class AppendableStateSerializer {
     private static final byte OP_PUT = 0x00;
     private static final byte OP_RMV = 0x0F;
-    private final Object lock = new Object();
-    private RandomAccessFile pFile;
 
-    AppendableStateSerializer(RandomAccessFile pFile) {
+    private final Object lock = new Object();
+
+    private RandomAccessFile pFile;
+    private LocationCheckpointCache cache;
+
+    private int lastPersistedEntryIdx = -1;
+
+    AppendableStateSerializer(RandomAccessFile pFile, int checkpointCacheSize) {
         this.pFile = pFile;
+        this.cache = new LocationCheckpointCache(checkpointCacheSize);
+    }
+
+    private void reset() {
+        /* evict all cache */
+        cache.evict(0);
+
+        /* reset counter */
+        lastPersistedEntryIdx = -1;
     }
 
     void initFile() throws IOException {
@@ -54,8 +73,8 @@ final class AppendableStateSerializer {
             pFile.setLength(0);
 
             /* write header with init val */
-            persistCurTerm(NodeStatus.INIT_CUR_TERM);
-            persistVotedFor(NodeStatus.INIT_VOTED_FOR);
+            persistCurTerm(NodeState.INIT_CUR_TERM);
+            persistVotedFor(NodeState.INIT_VOTED_FOR);
 
             log.debug("new persist file init to pos {}", pFile.length());
         }
@@ -112,12 +131,17 @@ final class AppendableStateSerializer {
 
     @SuppressWarnings("Duplicates")
     List<LogEntry> recoverEntries() throws Exception {
+        this.reset();
+
         List<LogEntry> entries = new ArrayList<>();
         int readLen;
+        long entryPos;
 
         synchronized (lock) {
             pFile.seek(8);
             while (true) {
+                entryPos = pFile.getFilePointer();
+
                 byte[] partEntryHead = new byte[1 + 4 + 4];
 
                 readLen = pFile.read(partEntryHead);
@@ -177,6 +201,10 @@ final class AppendableStateSerializer {
                     entry.setValue(entryValObj);
                 }
                 entries.add(entry);
+
+                /* build cache while recovering */
+                ++lastPersistedEntryIdx;
+                cache.put(lastPersistedEntryIdx, entryPos);
             }
         }
         return entries;
@@ -184,11 +212,30 @@ final class AppendableStateSerializer {
 
     @SuppressWarnings("Duplicates")
     void truncateLogEntry(final int toIdxExclusive) throws Exception {
-        int nextIdx = 0;
+
+        if (toIdxExclusive > lastPersistedEntryIdx) {
+            log.warn("no need to truncate, entry not included in persist file, be aware that this could not happen");
+            return;
+        }
+
+        int nextIdx;
 
         synchronized (lock) {
             int readLen;
-            pFile.seek(8);
+
+            /* load nearest checkpoint from cache */
+            LocationCheckpointCache.Result res = cache.get(toIdxExclusive);
+            if (Objects.nonNull(res)) {
+                pFile.seek(res.getPos());
+                nextIdx = res.getIdx();
+
+                log.info("cache hit at checkpoint {}", res);
+            } else {
+                pFile.seek(8);
+                nextIdx = 0;
+
+                log.info("cache miss");
+            }
 
             while (nextIdx < toIdxExclusive) {
                 byte[] partEntryHead = new byte[1 + 4 + 4];
@@ -229,7 +276,10 @@ final class AppendableStateSerializer {
             long curPos = pFile.getFilePointer();
             pFile.setLength(curPos);
 
-            log.debug("log file truncated to idx exclusive {}, current file len {}", toIdxExclusive, pFile.length());
+            lastPersistedEntryIdx = nextIdx - 1;
+            cache.evict(toIdxExclusive);
+
+            log.debug("log file truncated to idx inclusive {}, current file len {}", lastPersistedEntryIdx, pFile.length());
         }
     }
 
@@ -286,10 +336,109 @@ final class AppendableStateSerializer {
         }
 
         synchronized (lock) {
-            pFile.seek(pFile.length());
+            long entryPos = pFile.length();
+            pFile.seek(entryPos);
             pFile.write(buf);
+
+            ++lastPersistedEntryIdx;
+            cache.put(lastPersistedEntryIdx, entryPos);
         }
 
         log.debug("entry persisted with buf len {}, current file len {}", buf.length, pFile.length());
+    }
+
+    /**
+     * Cache based on a ring buffer to save
+     * checkpoints up to _cacheSize_.
+     * <p>
+     * <p>
+     * Since truncation mostly happens very near
+     * the entries rear, cache will store continuous
+     * _cacheSize_ entries succeeding to the rear.
+     * <p>
+     * All caches are evicted at least cost when
+     * there's a truncate operation.
+     * <p>
+     * Make sure _cacheSize_ is not too large.
+     */
+    @Slf4j(topic = "CACHE")
+    private static final class LocationCheckpointCache {
+
+        private static int INIT_VAL = -1;
+        /* log idx in state machine */
+        private final int[] idxArr;
+        /* related position in persist file */
+        private final long[] posArr;
+        @Getter
+        private int cacheSize;
+        private int next = 0;
+
+        private LocationCheckpointCache(int cacheSize) {
+            this.cacheSize = cacheSize;
+            this.idxArr = new int[cacheSize];
+            this.posArr = new long[cacheSize];
+
+            for (int i = 0; i < cacheSize; ++i) {
+                idxArr[i] = INIT_VAL;
+                posArr[i] = INIT_VAL;
+            }
+
+            log.info("check point cache init with size {}", cacheSize);
+        }
+
+        /* build cache when:
+         *      recover from disk
+         *      persist new entry
+         */
+        private synchronized void put(int idx, long pos) {
+            idxArr[next] = idx;
+            posArr[next] = pos;
+
+            next = (++next) % cacheSize;
+        }
+
+        /**
+         * @param idealIdx idx we want to locate
+         * @return nearest idx location & pos before the ideal idx, null if not found
+         */
+        private synchronized Result get(int idealIdx) {
+            int prev = (next + cacheSize - 1) % cacheSize;
+
+            do {
+                if (idxArr[prev] <= idealIdx) {
+                    return new Result(idxArr[prev], posArr[prev]);
+                }
+
+                prev = (prev + cacheSize - 1) % cacheSize;
+            } while (prev != next && idxArr[prev] != INIT_VAL);
+
+            return null;
+        }
+
+        private synchronized void evict(int toIdxExclusive) {
+            final int init = (next + cacheSize - 1) % cacheSize;
+            int prev = init;
+
+            do {
+                if (idxArr[prev] < toIdxExclusive) {
+                    break;
+                }
+
+                idxArr[prev] = INIT_VAL;
+                posArr[prev] = INIT_VAL;
+
+                prev = (prev + cacheSize - 1) % cacheSize;
+            } while (prev != init && idxArr[prev] != INIT_VAL);
+
+            next = (++prev) % cacheSize;
+        }
+
+        @AllArgsConstructor
+        @Getter
+        @ToString
+        private static final class Result {
+            private int idx;
+            private long pos;
+        }
     }
 }

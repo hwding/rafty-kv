@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.handler.msg;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.handler.GeneralInboundDatagramHandler;
 import com.amastigote.raftymicrocluster.procedure.ReplyAppendEntryResultProcedure;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
@@ -22,25 +22,25 @@ public class HeartbeatMsgDispatcher {
         log.info("HeartbeatMsgDispatcher dispatching...");
 
         if (MsgType.RpcAnalogType.REQ.equals(msg.getRpcAnalogType())) {
-            if (NodeStatus.role().equals(Role.LEADER)) {
+            if (NodeState.role().equals(Role.LEADER)) {
                 log.warn("other leader's heartbeat recv, step down");
 
-                synchronized (NodeStatus.class) {
-                    NodeStatus.transferRoleTo(Role.FOLLOWER);
-                    NodeStatus.heartbeatThread().interrupt();
+                synchronized (NodeState.class) {
+                    NodeState.transferRoleTo(Role.FOLLOWER);
+                    NodeState.heartbeatThread().interrupt();
 
                     heartbeatWatchdogResetInvoker.apply(false);
                 }
                 return;
             }
 
-            if (NodeStatus.role().equals(Role.CANDIDATE)) {
+            if (NodeState.role().equals(Role.CANDIDATE)) {
                 /* give up election procedure */
-                synchronized (NodeStatus.class) {
-                    NodeStatus.transferRoleTo(Role.FOLLOWER);
+                synchronized (NodeState.class) {
+                    NodeState.transferRoleTo(Role.FOLLOWER);
 
-                    if (NodeStatus.voteResWatchdogThread().isAlive()) {
-                        NodeStatus.voteResWatchdogThread().interrupt();
+                    if (NodeState.voteResWatchdogThread().isAlive()) {
+                        NodeState.voteResWatchdogThread().interrupt();
                     }
 
                     heartbeatWatchdogResetInvoker.apply(false);
@@ -51,7 +51,7 @@ public class HeartbeatMsgDispatcher {
             /* Role.FOLLOWER */
             heartbeatWatchdogResetInvoker.apply(true);
 
-            NodeStatus.FollowerAppendEntryResultContext context = NodeStatus.appendEntry(
+            NodeState.FollowerAppendEntryResultContext context = NodeState.appendEntry(
                     msg.getEntries(), msg.getPrevLogIdx(), msg.getPrevLogTerm(), msg.getLeaderCommittedIdx()
             );
             if (context.isNeedRespond()) {
@@ -66,7 +66,7 @@ public class HeartbeatMsgDispatcher {
 
         /* RES of AppendLogRPC */
         if (MsgType.RpcAnalogType.RES.equals(msg.getRpcAnalogType())) {
-            NodeStatus.updateFollowerEntriesState(msg.getResponseToPort(), msg.getLastReplicatedLogIdx());
+            NodeState.updateFollowerEntriesState(msg.getResponseToPort(), msg.getLastReplicatedLogIdx());
         }
     }
 }

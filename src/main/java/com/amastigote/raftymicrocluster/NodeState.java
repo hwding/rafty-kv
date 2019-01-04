@@ -20,8 +20,8 @@ import java.util.stream.Collectors;
  * @date: 2018/11/28
  */
 @SuppressWarnings("JavaDoc")
-@Slf4j(topic = "[NODE STATUS]")
-public final class NodeStatus {
+@Slf4j(topic = "[STATE]")
+public final class NodeState {
 
     public static final int INIT_CUR_TERM = 0;
     public static final int INIT_VOTED_FOR = 0;
@@ -66,9 +66,9 @@ public final class NodeStatus {
     private static volatile int appliedIdx = -1;
 
     synchronized static void init(int nodePort, int totalNodeCnt) {
-        NodeStatus.nodePort = nodePort;
-        NodeStatus.totalNodeCnt = totalNodeCnt;
-        NodeStatus.followerReplicatedIdxMap = new HashMap<>(totalNodeCnt - 1);
+        NodeState.nodePort = nodePort;
+        NodeState.totalNodeCnt = totalNodeCnt;
+        NodeState.followerReplicatedIdxMap = new HashMap<>(totalNodeCnt - 1);
 
         persistManager = PersistManager.getInstance();
         persistManager.recover();
@@ -87,7 +87,10 @@ public final class NodeStatus {
     }
 
     public static synchronized int incrCurrentTerm() {
-        return ++currentTerm;
+        ++currentTerm;
+        persistManager.persistCurrentTerm(currentTerm);
+
+        return currentTerm;
     }
 
     public static synchronized void updateTerm(int newTerm) {
@@ -97,6 +100,7 @@ public final class NodeStatus {
         }
 
         currentTerm = newTerm;
+        persistManager.persistCurrentTerm(currentTerm);
     }
 
     public static synchronized void rstVoteResWatchdogThread(boolean fire) {
@@ -146,12 +150,12 @@ public final class NodeStatus {
             System.exit(-1);
         }
 
-        if ((!Role.CANDIDATE.equals(NodeStatus.role)) && Role.CANDIDATE.equals(newRole)) {
+        if ((!Role.CANDIDATE.equals(NodeState.role)) && Role.CANDIDATE.equals(newRole)) {
             log.info("role transfer to {}, reset vote counter", newRole);
             rstVoteCnt();
         }
 
-        if ((!Role.LEADER.equals(NodeStatus.role)) && Role.LEADER.equals(newRole)) {
+        if ((!Role.LEADER.equals(NodeState.role)) && Role.LEADER.equals(newRole)) {
             log.info("role transfer to {}, reset followerReplicatedIdxMap to {}", newRole, entries.size());
             initFollowerReplicatedIdxMap(entries.size() - 1);
         }
@@ -161,7 +165,7 @@ public final class NodeStatus {
     }
 
     static void initParamPack(RemoteCommunicationParamPack paramPack) {
-        NodeStatus.paramPack = paramPack;
+        NodeState.paramPack = paramPack;
     }
 
     static void initFollowerReplicatedIdxMap() {
@@ -169,7 +173,7 @@ public final class NodeStatus {
     }
 
     private static void initFollowerReplicatedIdxMap(int newVal) {
-        if (Objects.isNull(NodeStatus.paramPack)) {
+        if (Objects.isNull(NodeState.paramPack)) {
             log.error("init followerReplicatedIdxMap after init paramPack");
             System.exit(-1);
         }
@@ -210,6 +214,7 @@ public final class NodeStatus {
     public static synchronized void voteFor(int candidateId) {
         if (votedFor == 0) {
             votedFor = candidateId;
+            persistManager.persistVotedFor(votedFor);
 
             log.info("voted for {} in current term {}", votedFor, currentTerm);
             return;
@@ -301,7 +306,7 @@ public final class NodeStatus {
 
     /* recover from persisted state or internal call only */
     public synchronized static void appendEntryUnaltered(List<LogEntry> entries) {
-        NodeStatus.entries.addAll(entries);
+        NodeState.entries.addAll(entries);
     }
 
     private synchronized static void appendPersistEntryUnaltered(List<LogEntry> entries) {

@@ -1,7 +1,7 @@
 package com.amastigote.raftymicrocluster.thread;
 
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.RemoteCommunicationParamPack;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
@@ -28,7 +28,7 @@ public class HeartBeatThread extends Thread {
         while (!super.isInterrupted()) {
             log.info("round start...");
             try {
-                NodeStatus.paramPack()
+                NodeState.paramPack()
                         .getCommunicationTargets()
                         .parallelStream()
                         .forEach(target -> {
@@ -38,12 +38,12 @@ public class HeartBeatThread extends Thread {
                                 final GeneralMsg msg = new GeneralMsg();
                                 msg.setMsgType(MsgType.HEARTBEAT);
                                 msg.setRpcAnalogType(MsgType.RpcAnalogType.REQ);
-                                msg.setTerm(NodeStatus.currentTerm());
-                                msg.setResponseToPort(NodeStatus.nodePort());
+                                msg.setTerm(NodeState.currentTerm());
+                                msg.setResponseToPort(NodeState.nodePort());
 
-                                NodeStatus.FollowerResidualEntryInfo residualLogs = NodeStatus.genResidualEntryInfoForFollower(targetPort);
+                                NodeState.FollowerResidualEntryInfo residualLogs = NodeState.genResidualEntryInfoForFollower(targetPort);
                                 msg.setEntries(residualLogs.getResidualLogs());
-                                msg.setLeaderCommittedIdx(NodeStatus.leaderCommittedIdx());
+                                msg.setLeaderCommittedIdx(NodeState.leaderCommittedIdx());
                                 msg.setPrevLogIdx(residualLogs.getPrevLogIdx());
                                 msg.setPrevLogTerm(residualLogs.getPrevLogTerm());
 

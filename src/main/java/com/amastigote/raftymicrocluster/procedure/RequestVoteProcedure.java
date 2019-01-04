@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.procedure;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.RemoteCommunicationParamPack;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
@@ -25,15 +25,15 @@ public class RequestVoteProcedure extends Thread {
     public void run() {
         log.info("RequestVoteProcedure start...");
 
-        NodeStatus.paramPack().getCommunicationTargets().parallelStream().forEach(t -> {
+        NodeState.paramPack().getCommunicationTargets().parallelStream().forEach(t -> {
             GeneralMsg msg = new GeneralMsg();
             msg.setMsgType(MsgType.ELECT);
             msg.setRpcAnalogType(MsgType.RpcAnalogType.REQ);
-            msg.setTerm(NodeStatus.currentTerm());
-            msg.setResponseToPort(NodeStatus.nodePort());
+            msg.setTerm(NodeState.currentTerm());
+            msg.setResponseToPort(NodeState.nodePort());
 
-            msg.setLastLogIdx(NodeStatus.lastReplicatedLogIdx());
-            msg.setLastLogTerm(NodeStatus.lastReplicatedLogTerm());
+            msg.setLastLogIdx(NodeState.lastReplicatedLogIdx());
+            msg.setLastLogTerm(NodeState.lastReplicatedLogTerm());
 
             try {
                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();

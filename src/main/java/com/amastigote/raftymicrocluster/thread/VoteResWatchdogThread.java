@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.thread;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.procedure.ReElectionInitiateProcedure;
 import com.amastigote.raftymicrocluster.protocol.Role;
 import com.amastigote.raftymicrocluster.protocol.TimeSpan;
@@ -36,6 +36,6 @@ public class VoteResWatchdogThread extends Thread {
 
     /* if it remains CANDIDATE, then there'a a split vote */
     private boolean isSplitVote() {
-        return NodeStatus.role().equals(Role.CANDIDATE);
+        return NodeState.role().equals(Role.CANDIDATE);
     }
 }

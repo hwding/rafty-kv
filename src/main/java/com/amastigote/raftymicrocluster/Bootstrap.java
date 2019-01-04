@@ -31,14 +31,14 @@ public class Bootstrap {
         log.info("init...");
 
         Random random = new Random(System.nanoTime());
-        NodeStatus.init(Integer.valueOf(args[0]), args.length);
+        NodeState.init(Integer.valueOf(args[0]), args.length);
         EventLoopGroup loopGroup = new NioEventLoopGroup(1);
         DoNothingInboundDatagramHandler doNothingInboundDatagramHandler = new DoNothingInboundDatagramHandler();
 
         String[] desPorts = new String[args.length - 1];
         System.arraycopy(args, 1, desPorts, 0, args.length - 1);
 
-        log.info("node @ {}, remote @ {}", NodeStatus.nodePort(), Arrays.toString(desPorts));
+        log.info("node @ {}, remote @ {}", NodeState.nodePort(), Arrays.toString(desPorts));
 
         List<RemoteCommunicationParamPack.RemoteTarget> communicationTargets = Stream
                 .of(desPorts)
@@ -67,11 +67,11 @@ public class Bootstrap {
                 .collect(Collectors.toList());
 
         RemoteCommunicationParamPack paramPack = new RemoteCommunicationParamPack(communicationTargets);
-        NodeStatus.initParamPack(paramPack);
-        NodeStatus.initFollowerReplicatedIdxMap();
+        NodeState.initParamPack(paramPack);
+        NodeState.initFollowerReplicatedIdxMap();
 
-        NodeStatus.rstHeartbeatThread(false);
-        NodeStatus.rstVoteResWatchdogThread(false);
+        NodeState.rstHeartbeatThread(false);
+        NodeState.rstVoteResWatchdogThread(false);
 
         GeneralInboundDatagramHandler generalInboundDatagramHandler = new GeneralInboundDatagramHandler();
 
@@ -79,13 +79,13 @@ public class Bootstrap {
                 .group(loopGroup)
                 .channel(NioDatagramChannel.class)
                 .handler(generalInboundDatagramHandler)
-                .bind(NodeStatus.nodePort());
+                .bind(NodeState.nodePort());
 
-        NodeStatus.rstHeartBeatWatchdogThread(true);
+        NodeState.rstHeartBeatWatchdogThread(true);
 
         /* >> server for client init */
         try {
-            HttpServer server = HttpServer.create(new InetSocketAddress(NodeStatus.nodePort() + 200), 0);
+            HttpServer server = HttpServer.create(new InetSocketAddress(NodeState.nodePort() + 200), 0);
             server.createContext("/", new ClientHttpHandler());
             server.start();
         } catch (IOException e) {

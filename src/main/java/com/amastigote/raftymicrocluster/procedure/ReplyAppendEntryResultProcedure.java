@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.procedure;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.RemoteCommunicationParamPack;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
@@ -21,9 +21,9 @@ import java.util.Optional;
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "[REPLY APPEND PROC]")
 public class ReplyAppendEntryResultProcedure implements Runnable {
-    private final NodeStatus.FollowerAppendEntryResultContext resultContext;
+    private final NodeState.FollowerAppendEntryResultContext resultContext;
 
-    public ReplyAppendEntryResultProcedure(NodeStatus.FollowerAppendEntryResultContext resultContext) {
+    public ReplyAppendEntryResultProcedure(NodeState.FollowerAppendEntryResultContext resultContext) {
         this.resultContext = resultContext;
     }
 
@@ -31,13 +31,13 @@ public class ReplyAppendEntryResultProcedure implements Runnable {
     public void run() {
         log.info("ReplyAppendEntryResultProcedure start...");
         GeneralMsg msg = new GeneralMsg();
-        msg.setTerm(NodeStatus.currentTerm());
+        msg.setTerm(NodeState.currentTerm());
         msg.setMsgType(MsgType.HEARTBEAT);
         msg.setRpcAnalogType(MsgType.RpcAnalogType.RES);
-        msg.setResponseToPort(NodeStatus.nodePort());
+        msg.setResponseToPort(NodeState.nodePort());
         msg.setLastReplicatedLogIdx(resultContext.getLastReplicatedLogIdx());
 
-        Optional<RemoteCommunicationParamPack.RemoteTarget> targetOptional = NodeStatus
+        Optional<RemoteCommunicationParamPack.RemoteTarget> targetOptional = NodeState
                 .paramPack()
                 .getCommunicationTargets()
                 .parallelStream()

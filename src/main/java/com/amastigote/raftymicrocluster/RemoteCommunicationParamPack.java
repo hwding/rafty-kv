@@ -12,11 +12,11 @@ import java.util.List;
  * @author: hwding
  * @date: 2018/11/29
  */
-@SuppressWarnings({"JavaDoc", "MismatchedReadAndWriteOfArray"})
+@SuppressWarnings({"JavaDoc"})
 @Getter
 public class RemoteCommunicationParamPack {
     public static final InetSocketAddress senderAddr = SocketUtils.socketAddress(
-            "localhost", NodeStatus.nodePort()
+            "localhost", NodeState.nodePort()
     );
     private List<RemoteTarget> communicationTargets;
 

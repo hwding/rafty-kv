@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.handler;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.handler.msg.ElectMsgDispatcher;
 import com.amastigote.raftymicrocluster.handler.msg.HeartbeatMsgDispatcher;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
@@ -60,12 +60,12 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
 
         @Override
         public Void apply(Boolean needResetTimerIfAlreadyActive) {
-            synchronized (NodeStatus.class) {
-                if (!NodeStatus.heartBeatWatchdogThread().isAlive()) {
-                    NodeStatus.rstHeartBeatWatchdogThread(true);
+            synchronized (NodeState.class) {
+                if (!NodeState.heartBeatWatchdogThread().isAlive()) {
+                    NodeState.rstHeartBeatWatchdogThread(true);
                     log.info("heartBeatWatchdogThread reset and start");
                 } else if (needResetTimerIfAlreadyActive) {
-                    NodeStatus.heartBeatWatchdogThread().interrupt();
+                    NodeState.heartBeatWatchdogThread().interrupt();
                 }
             }
 
@@ -77,17 +77,17 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
 
         @Override
         public Integer apply(Integer term) {
-            synchronized (NodeStatus.class) {
+            synchronized (NodeState.class) {
 
                 /* -1: current is older
                  *  0: equal
                  * +1: current is newer */
-                int compareToRecvTerm = Integer.compare(NodeStatus.currentTerm(), term);
+                int compareToRecvTerm = Integer.compare(NodeState.currentTerm(), term);
                 if (compareToRecvTerm == -1) {
                     log.info("newer term {} detected", term);
 
-                    NodeStatus.updateTerm(term);
-                    NodeStatus.rstVotedFor();
+                    NodeState.updateTerm(term);
+                    NodeState.rstVotedFor();
                 }
 
                 return compareToRecvTerm;

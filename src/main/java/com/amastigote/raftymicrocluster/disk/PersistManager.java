@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.disk;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.protocol.LogEntry;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,24 +20,34 @@ import java.util.Properties;
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "PERSIST")
 public final class PersistManager {
-    private final static String CONFIGURATION_PREFIX = "com.amastigote.raftymicrocluster.";
     private final static String CONFIGURATION_FILE = "rafty-persist.properties";
+
+    private final static String CONFIGURATION_PREFIX = "com.amastigote.raftymicrocluster.";
+
     private final static String KEY_END_PERSIST_DIR = "persistDir";
+    private final static String KEY_END_CHECKPOINT_CACHE_SIZE = "checkPointCacheSize";
+
     private final static String KEY_PERSIST_DIR = CONFIGURATION_PREFIX + KEY_END_PERSIST_DIR;
+    private final static String KEY_CHECKPOINT_CACHE_SIZE = CONFIGURATION_PREFIX + KEY_END_CHECKPOINT_CACHE_SIZE;
+
     private final static String DEFAULT_VAL_PERSIST_DIR = ".";
+    private static final int DEFAULT_CHECKPOINT_CACHE_SIZE = 20;
+
     private static AppendableStateSerializer stateSerializer;
+    private static PersistManager instance = new PersistManager();
     private final Properties properties = new Properties();
     private boolean recoverable = true;
-
-    private static PersistManager instance = new PersistManager();
 
     private PersistManager() {
         try {
             loadProperties();
 
-            String persistDir = properties.getProperty(KEY_PERSIST_DIR, DEFAULT_VAL_PERSIST_DIR);
+            final String persistDir = properties.getProperty(KEY_PERSIST_DIR, DEFAULT_VAL_PERSIST_DIR);
+            final int checkpointCacheSize = Integer.valueOf(
+                    properties.getProperty(KEY_CHECKPOINT_CACHE_SIZE, String.valueOf(DEFAULT_CHECKPOINT_CACHE_SIZE))
+            );
 
-            File file = new File(persistDir, String.valueOf(NodeStatus.nodePort()));
+            File file = new File(persistDir, String.valueOf(NodeState.nodePort()));
             if (!file.exists()) {
                 boolean created = file.createNewFile();
 
@@ -51,7 +61,7 @@ public final class PersistManager {
 
             RandomAccessFile persistFile = new RandomAccessFile(file, "rws");
 
-            stateSerializer = new AppendableStateSerializer(persistFile);
+            stateSerializer = new AppendableStateSerializer(persistFile, checkpointCacheSize);
 
             if (!recoverable) {
                 stateSerializer.initFile();
@@ -104,15 +114,15 @@ public final class PersistManager {
             return false;
         }
 
-        NodeStatus.updateTerm(term);
-        NodeStatus.voteFor(vote);
-        NodeStatus.appendEntryUnaltered(entries);
+        NodeState.updateTerm(term);
+        NodeState.voteFor(vote);
+        NodeState.appendEntryUnaltered(entries);
 
         log.info("recovered with term {}, votedFor {}, entries {}", term, vote, entries.size());
         return true;
     }
 
-    void persistCurrentTerm(int term) {
+    public void persistCurrentTerm(int term) {
         try {
             stateSerializer.persistCurTerm(term);
         } catch (IOException e) {
@@ -120,7 +130,7 @@ public final class PersistManager {
         }
     }
 
-    void persistVotedFor(int votedFor) {
+    public void persistVotedFor(int votedFor) {
         try {
             stateSerializer.persistVotedFor(votedFor);
         } catch (IOException e) {

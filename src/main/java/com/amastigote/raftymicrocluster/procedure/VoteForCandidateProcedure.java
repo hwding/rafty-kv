@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.procedure;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.RemoteCommunicationParamPack;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
 import com.amastigote.raftymicrocluster.protocol.MsgType;
@@ -42,11 +42,11 @@ public class VoteForCandidateProcedure extends Thread {
     public void run() {
         log.info("VoteForCandidateProcedure start...");
 
-        synchronized (NodeStatus.class) {
+        synchronized (NodeState.class) {
 
             /* >> election safety check */
-            final int currentLastReplicatedLogIdx = NodeStatus.lastReplicatedLogIdx();
-            final int currentLastReplicatedLogTerm = NodeStatus.lastReplicatedLogTerm();
+            final int currentLastReplicatedLogIdx = NodeState.lastReplicatedLogIdx();
+            final int currentLastReplicatedLogTerm = NodeState.lastReplicatedLogTerm();
 
             if (currentLastReplicatedLogTerm > candidateLastReplicatedLogTerm) {
                 log.info("candidate failed safety (up-to-date) check in voter, give up: " +
@@ -63,19 +63,19 @@ public class VoteForCandidateProcedure extends Thread {
             }
             /* >> election safety check */
 
-            int votedFor = NodeStatus.votedFor();
+            int votedFor = NodeState.votedFor();
 
             if (votedFor != 0) {
                 log.warn("has voted for {} in term {}, give up", votedFor, candidateTerm);
                 return;
             }
 
-            if (NodeStatus.currentTerm() != candidateTerm) {
-                log.warn("term updated {} -> {} before voting, give up", candidateTerm, NodeStatus.currentTerm());
+            if (NodeState.currentTerm() != candidateTerm) {
+                log.warn("term updated {} -> {} before voting, give up", candidateTerm, NodeState.currentTerm());
                 return;
             }
 
-            Optional<RemoteCommunicationParamPack.RemoteTarget> targetOptional = NodeStatus
+            Optional<RemoteCommunicationParamPack.RemoteTarget> targetOptional = NodeState
                     .paramPack()
                     .getCommunicationTargets()
                     .parallelStream()
@@ -110,7 +110,7 @@ public class VoteForCandidateProcedure extends Thread {
                         return;
                     }
 
-                    NodeStatus.voteFor(candidatePort);
+                    NodeState.voteFor(candidatePort);
                 });
 
             } catch (IOException e) {

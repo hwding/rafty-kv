@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.handler.msg;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.handler.GeneralInboundDatagramHandler;
 import com.amastigote.raftymicrocluster.procedure.VoteForCandidateProcedure;
 import com.amastigote.raftymicrocluster.protocol.GeneralMsg;
@@ -25,13 +25,13 @@ public final class ElectMsgDispatcher {
         MsgType.RpcAnalogType rpcAnalogType = msg.getRpcAnalogType();
 
         if (rpcAnalogType.equals(MsgType.RpcAnalogType.REQ)) {
-            NodeStatus.heartBeatWatchdogThread().interrupt();
-            if (NodeStatus.role().equals(Role.LEADER)) {
+            NodeState.heartBeatWatchdogThread().interrupt();
+            if (NodeState.role().equals(Role.LEADER)) {
 
                 /* step down and vote for this candidate */
-                synchronized (NodeStatus.class) {
-                    NodeStatus.transferRoleTo(Role.FOLLOWER);
-                    NodeStatus.heartbeatThread().interrupt();
+                synchronized (NodeState.class) {
+                    NodeState.transferRoleTo(Role.FOLLOWER);
+                    NodeState.heartbeatThread().interrupt();
 
                     heartbeatWatchdogResetInvoker.apply(false);
 
@@ -46,15 +46,15 @@ public final class ElectMsgDispatcher {
                 return;
             }
 
-            if (NodeStatus.role().equals(Role.CANDIDATE)) {
+            if (NodeState.role().equals(Role.CANDIDATE)) {
                 if (compareToRecvTerm == -1) {
 
                     /* step down and vote for this newer candidate */
-                    synchronized (NodeStatus.class) {
-                        NodeStatus.transferRoleTo(Role.FOLLOWER);
+                    synchronized (NodeState.class) {
+                        NodeState.transferRoleTo(Role.FOLLOWER);
 
                         /* end campaign waiting in advance */
-                        NodeStatus.voteResWatchdogThread().interrupt();
+                        NodeState.voteResWatchdogThread().interrupt();
 
                         heartbeatWatchdogResetInvoker.apply(false);
                     }
@@ -73,7 +73,7 @@ public final class ElectMsgDispatcher {
                 return;
             }
 
-            if (NodeStatus.role().equals(Role.FOLLOWER) && (compareToRecvTerm <= 0)) {
+            if (NodeState.role().equals(Role.FOLLOWER) && (compareToRecvTerm <= 0)) {
 
                 /* the follower should remain its state as long as it receives valid RPCs from leader OR **candidate** */
                 heartbeatWatchdogResetInvoker.apply(true);
@@ -89,17 +89,17 @@ public final class ElectMsgDispatcher {
         }
 
         if (rpcAnalogType.equals(MsgType.RpcAnalogType.RES)) {
-            if (NodeStatus.role().equals(Role.CANDIDATE)) {
-                int voteCnt = NodeStatus.incrVoteCnt();
-                if (voteCnt >= NodeStatus.majorityNodeCnt()) {
+            if (NodeState.role().equals(Role.CANDIDATE)) {
+                int voteCnt = NodeState.incrVoteCnt();
+                if (voteCnt >= NodeState.majorityNodeCnt()) {
                     log.info("nice, i'm leader now with voteCnt {}", voteCnt);
-                    synchronized (NodeStatus.class) {
-                        NodeStatus.transferRoleTo(Role.LEADER);
+                    synchronized (NodeState.class) {
+                        NodeState.transferRoleTo(Role.LEADER);
 
-                        NodeStatus.rstHeartbeatThread(true);
+                        NodeState.rstHeartbeatThread(true);
 
-                        NodeStatus.heartBeatWatchdogThread().interrupt();
-                        NodeStatus.voteResWatchdogThread().interrupt();
+                        NodeState.heartBeatWatchdogThread().interrupt();
+                        NodeState.voteResWatchdogThread().interrupt();
                     }
                 }
                 return;

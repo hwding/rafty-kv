@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.handler;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.Storage;
 import com.amastigote.raftymicrocluster.protocol.LogEntry;
 import com.sun.net.httpserver.HttpExchange;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @Slf4j(topic = "HTTP HANDLER")
 public class ClientHttpHandler implements HttpHandler {
 
-    private Storage storage = NodeStatus.storage();
+    private Storage storage = NodeState.storage();
 
     @Override
     public void handle(HttpExchange httpExchange) throws IOException {
@@ -72,7 +72,7 @@ public class ClientHttpHandler implements HttpHandler {
                     .parallelStream().map(e -> new LogEntry(e.getKey(), e.getValue(), commandType))
                     .collect(Collectors.toList());
 
-            NodeStatus.appendEntryFromClient(entries);
+            NodeState.appendEntryFromClient(entries);
 
             httpExchange.sendResponseHeaders(HttpResponseStatus.OK.code(), 0L);
             httpExchange.getResponseBody().close();

@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.thread;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.procedure.ReElectionInitiateProcedure;
 import com.amastigote.raftymicrocluster.protocol.Role;
 import com.amastigote.raftymicrocluster.protocol.TimeSpan;
@@ -30,7 +30,7 @@ public class HeartBeatWatchdogThread extends Thread {
                 }
 
                 /* if no longer follower after awake */
-                if (!NodeStatus.role().equals(Role.FOLLOWER)) {
+                if (!NodeState.role().equals(Role.FOLLOWER)) {
                     log.info("no longer FOLLOWER after awake, exit");
                     break;
                 }
@@ -39,10 +39,10 @@ public class HeartBeatWatchdogThread extends Thread {
                 log.warn("heartbeat not recv in {} ms", heartBeatTimeout);
                 new ReElectionInitiateProcedure().start();
             } catch (InterruptedException e) {
-                synchronized (NodeStatus.class) {
+                synchronized (NodeState.class) {
 
                     /* if interrupted due to role changing, stop thread */
-                    if (!NodeStatus.role().equals(Role.FOLLOWER)) {
+                    if (!NodeState.role().equals(Role.FOLLOWER)) {
                         log.info("heartbeat watchdog interrupted in NON-FOLLOWER state, exit");
                         break;
                     }

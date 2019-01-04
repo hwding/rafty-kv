@@ -1,6 +1,6 @@
 package com.amastigote.raftymicrocluster.procedure;
 
-import com.amastigote.raftymicrocluster.NodeStatus;
+import com.amastigote.raftymicrocluster.NodeState;
 import com.amastigote.raftymicrocluster.protocol.Role;
 import lombok.extern.slf4j.Slf4j;
 
@@ -19,19 +19,19 @@ public class ReElectionInitiateProcedure extends Thread {
         long newTerm;
 
         /* transfer state */
-        synchronized (NodeStatus.class) {
-            newTerm = NodeStatus.incrCurrentTerm();
-            NodeStatus.transferRoleTo(Role.CANDIDATE);
+        synchronized (NodeState.class) {
+            newTerm = NodeState.incrCurrentTerm();
+            NodeState.transferRoleTo(Role.CANDIDATE);
 
             /* candidate should first vote for itself */
-            NodeStatus.rstVotedFor();
+            NodeState.rstVotedFor();
         }
         log.info("term increased to " + newTerm);
 
         /* reset concerning timers */
-        synchronized (NodeStatus.class) {
-            NodeStatus.rstVoteResWatchdogThread(true);
-            NodeStatus.rstHeartBeatWatchdogThread(false);
+        synchronized (NodeState.class) {
+            NodeState.rstVoteResWatchdogThread(true);
+            NodeState.rstHeartBeatWatchdogThread(false);
         }
 
         new RequestVoteProcedure().start();
