@@ -16,6 +16,9 @@ import java.util.List;
  * This is a simple alterable (for term & vote) & appendable (for logs)
  * de/serializer for node state persistent.
  * <p>
+ * TODO: A cache is used to make truncate more efficient by
+ * saving nearby entry idx location in file to speed up searching
+ * <p>
  * Data is persisted in byte arr, format (unit is byte):
  * <p>
  * --------HEAD---------
@@ -107,6 +110,7 @@ final class AppendableStateSerializer {
         des[offset + 3] = (byte) ((data >>> 0) & 0xFF);
     }
 
+    @SuppressWarnings("Duplicates")
     List<LogEntry> recoverEntries() throws Exception {
         List<LogEntry> entries = new ArrayList<>();
         int readLen;
@@ -178,6 +182,54 @@ final class AppendableStateSerializer {
         return entries;
     }
 
+    @SuppressWarnings("Duplicates")
+    void truncateLogEntry(final int toIdxExclusive) throws Exception {
+        int nextIdx = 0;
+
+        synchronized (lock) {
+            int readLen;
+            pFile.seek(8);
+
+            while (nextIdx < toIdxExclusive) {
+                byte[] partEntryHead = new byte[1 + 4 + 4];
+
+                readLen = pFile.read(partEntryHead);
+                if (readLen <= 0) {
+                    break;
+                }
+
+                byte op = partEntryHead[0];
+                int entryKeyLen = recoverInt(partEntryHead, 1 + 4);
+
+                pFile.seek(pFile.getFilePointer() + entryKeyLen);
+
+                LogEntry.LogCommandType entryComType = (op == 0x00 ? LogEntry.LogCommandType.PUT : LogEntry.LogCommandType.REMOVE);
+
+                if (entryComType.equals(LogEntry.LogCommandType.PUT)) {
+                    byte[] valLenBuf = new byte[4];
+
+                    readLen = pFile.read(valLenBuf);
+                    if (readLen != 4) {
+                        throw new Exception("val len corrupted at pos " + pFile.getFilePointer());
+                    }
+
+                    int entryValLen = recoverInt(valLenBuf, 0);
+                    pFile.seek(pFile.getFilePointer() + entryValLen);
+                }
+                ++nextIdx;
+            }
+
+            long curPos = pFile.getFilePointer();
+            if (curPos >= pFile.length()) {
+                log.warn("no need to truncate, entry not included in persist file, be aware that this could not happen");
+                return;
+            }
+
+            pFile.setLength(curPos);
+            log.debug("log file truncated to idx exclusive {}, current file len {}", toIdxExclusive, pFile.length());
+        }
+    }
+
     @SuppressWarnings({"Duplicates"})
     void persistLogEntry(LogEntry entry) throws IOException {
         LogEntry.LogCommandType commandType = entry.getLogCommandType();
@@ -235,6 +287,6 @@ final class AppendableStateSerializer {
             pFile.write(buf);
         }
 
-        log.debug("entry serialized with buf len {}", buf.length);
+        log.debug("entry persisted with buf len {}, current file len {}", buf.length, pFile.length());
     }
 }

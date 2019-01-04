@@ -135,4 +135,12 @@ final class PersistManager {
             log.warn("failed to persist log entry {}", entry);
         }
     }
+
+    public void truncateLogEntry(int toIdxExclusive) {
+        try {
+            stateSerializer.truncateLogEntry(toIdxExclusive);
+        } catch (Exception e) {
+            log.warn("failed to truncate log entry to idx exclusive {}", toIdxExclusive, e);
+        }
+    }
 }
