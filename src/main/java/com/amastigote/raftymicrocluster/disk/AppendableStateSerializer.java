@@ -216,16 +216,19 @@ final class AppendableStateSerializer {
                     int entryValLen = recoverInt(valLenBuf, 0);
                     pFile.seek(pFile.getFilePointer() + entryValLen);
                 }
+
+                /* already reach the end of file */
+                if (pFile.getFilePointer() >= pFile.length()) {
+                    log.warn("no need to truncate, entry not included in persist file, be aware that this could not happen");
+                    return;
+                }
+
                 ++nextIdx;
             }
 
             long curPos = pFile.getFilePointer();
-            if (curPos >= pFile.length()) {
-                log.warn("no need to truncate, entry not included in persist file, be aware that this could not happen");
-                return;
-            }
-
             pFile.setLength(curPos);
+
             log.debug("log file truncated to idx exclusive {}, current file len {}", toIdxExclusive, pFile.length());
         }
     }
