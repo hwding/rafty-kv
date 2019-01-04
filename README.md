@@ -1,5 +1,5 @@
 # rafty-micro-cluster
-![](https://img.shields.io/badge/Powered%20by-raft%20protocol-orange.svg?style=flat-square)  
+![](https://img.shields.io/badge/Powered%20by-Raft%20Algorithm-orange.svg?style=flat-square)  
 A local running, distributed KV storage system for learning purposes based on replica state machine(RSM) cluster which implements raft consensus algorithm in a fully asynchronous way.
 ### Introduction
 #### Implementation
