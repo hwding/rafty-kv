@@ -15,7 +15,7 @@ import java.util.Properties;
 public final class NodeGlobalConf {
     private final static Properties properties = new Properties();
 
-    private final static String CONFIGURATION_FILE = "rafty-persist.properties";
+    private final static String CONFIGURATION_FILE = "rafty-node.properties";
     private final static String CONFIGURATION_PREFIX = "com.amastigote.rafty-kv.";
 
     private final static String __KEY_PERSIST_DIR = "persistDir";

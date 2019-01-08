@@ -45,4 +45,4 @@ Configuration will be auto loaded from resource path.
 
 Specifying conf file in startup argument is currently not supported, for that using different configurations among nodes is not suggested.
 
-Default conf: [rafty-persist.properties](https://github.com/hwding/rafty-kv/blob/master/src/main/resources/rafty-persist.properties)
+Default conf: [rafty-node.properties](https://github.com/hwding/rafty-kv/blob/master/src/main/resources/rafty-persist.properties)
