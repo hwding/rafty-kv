@@ -16,14 +16,33 @@ D Ongaro, JK Ousterhout - USENIX Annual Technical Conference, 2014 - usenix.org]
 #### Finished
 - Leader election/reelection (without restriction)
 - Log replication
+- Persisted states & recovery
 
 #### Ongoing
 - Safety
 - Client interaction
-- Persisted states & recovery
 
 #### Todo
 
 - Cluster membership changes
 - Leadership transfer extension
 - Log compaction
+
+### How-To
+#### Node start up argument
+```text
+[current node port] [other node ports ...]
+
+e.g.
+(node 0) 8080 8081 8082 8083 8084
+(node 1) 8081 8080 8082 8083 8084
+(node 2) 8082 8080 8081 8083 8084
+(node 3) 8083 8080 8081 8082 8084
+(node 4) 8084 8080 8081 8082 8083
+```
+#### Cluster/Node global configuration
+Configuration will be auto loaded from resource path.
+
+Specifying conf file in startup argument is currently not supported, for that using different configurations among nodes is not suggested.
+
+Default conf: [rafty-persist.properties](https://github.com/hwding/rafty-kv/blob/master/src/main/resources/rafty-persist.properties)

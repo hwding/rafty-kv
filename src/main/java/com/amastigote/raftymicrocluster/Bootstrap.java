@@ -1,8 +1,10 @@
 package com.amastigote.raftymicrocluster;
 
+import com.amastigote.raftymicrocluster.conf.NodeGlobalConf;
 import com.amastigote.raftymicrocluster.handler.ClientHttpHandler;
 import com.amastigote.raftymicrocluster.handler.DoNothingInboundDatagramHandler;
 import com.amastigote.raftymicrocluster.handler.GeneralInboundDatagramHandler;
+import com.amastigote.raftymicrocluster.protocol.TimeSpan;
 import com.sun.net.httpserver.HttpServer;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
@@ -30,8 +32,10 @@ public class Bootstrap {
     public static void main(String[] args) {
         log.info("init...");
 
-        Random random = new Random(System.nanoTime());
+        NodeGlobalConf.init();
+        TimeSpan.init();
         NodeState.init(Integer.valueOf(args[0]), args.length);
+
         EventLoopGroup loopGroup = new NioEventLoopGroup(1);
         DoNothingInboundDatagramHandler doNothingInboundDatagramHandler = new DoNothingInboundDatagramHandler();
 
@@ -40,12 +44,24 @@ public class Bootstrap {
 
         log.info("node @ {}, remote @ {}", NodeState.nodePort(), Arrays.toString(desPorts));
 
+        final int maxRetry = Integer.valueOf(NodeGlobalConf.readConf(NodeGlobalConf.KEY_BIND_RAND_PORT_MAX_RETRY));
+        final int randPortMin = Integer.valueOf(NodeGlobalConf.readConf(NodeGlobalConf.KEY_RAND_PORT_MIN));
+        final int randPortMax = Integer.valueOf(NodeGlobalConf.readConf(NodeGlobalConf.KEY_RAND_PORT_MAX));
+        final int randBound = randPortMax - randPortMin;
+
+        if (randBound <= 0) {
+            log.error("rand port max {} must be greater than min {}", randPortMax, randPortMin);
+            System.exit(-1);
+        }
+
+        Random random = new Random();
         List<RemoteCommunicationParamPack.RemoteTarget> communicationTargets = Stream
                 .of(desPorts)
                 .mapToInt(Integer::valueOf)
                 .mapToObj(port -> {
-                    while (true) {
-                        int randPort = 8100 + random.nextInt(100);
+                    int curRetry = maxRetry;
+                    while (curRetry > 0) {
+                        int randPort = randPortMin + random.nextInt(randPortMax - randPortMin);
                         try {
                             Channel remoteChn = new io.netty.bootstrap.Bootstrap()
                                     .group(loopGroup)
@@ -61,8 +77,13 @@ public class Bootstrap {
                             );
                         } catch (Exception e) {
                             log.warn("port {} occupied? retry...", randPort);
+                            --curRetry;
                         }
                     }
+                    log.error("failed to bind random port for remote node channels after {} retries", maxRetry);
+
+                    System.exit(-1);
+                    return null;
                 })
                 .collect(Collectors.toList());
 
