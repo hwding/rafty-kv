@@ -1,5 +1,5 @@
 target/
-rafty-micro-cluster.iml
+*.iml
 .idea/
 src/test/
 *Test.java
