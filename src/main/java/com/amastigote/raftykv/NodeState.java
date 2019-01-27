@@ -6,6 +6,9 @@ import com.amastigote.raftykv.protocol.Role;
 import com.amastigote.raftykv.thread.HeartBeatThread;
 import com.amastigote.raftykv.thread.HeartBeatWatchdogThread;
 import com.amastigote.raftykv.thread.VoteResWatchdogThread;
+import com.amastigote.raftykv.util.RemoteIoParamPack;
+import com.amastigote.raftykv.util.Storage;
+import com.amastigote.raftykv.util.VirtElemSupportedArrList;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,6 +28,8 @@ public final class NodeState {
 
     public static final int INIT_CUR_TERM = 0;
     public static final int INIT_VOTED_FOR = 0;
+    public static final int INIT_VIRT_ENTRY_CNT = 1;
+    private static final int INIT_NO_REPLICATED_LOG_LAST_IDX = -1;
 
     private static int nodePort;
     private static Role role = Role.FOLLOWER;
@@ -44,7 +49,7 @@ public final class NodeState {
 
     private static volatile int voteCnt = 0;
 
-    private static RemoteCommunicationParamPack paramPack;
+    private static RemoteIoParamPack paramPack;
 
     private static PersistManager persistManager;
 
@@ -54,9 +59,12 @@ public final class NodeState {
     private static Map<Integer, Integer> followerReplicatedIdxMap;
     /* << LEADER only */
 
-    private static List<LogEntry> entries = new ArrayList<LogEntry>() {{
-        add(new LogEntry("__INIT", null, LogEntry.LogCommandType.REMOVE));
-    }};
+//    private static List<LogEntry> entries = new ArrayList<LogEntry>() {{
+//        add(new LogEntry("__INIT", null, LogEntry.LogCommandType.REMOVE));
+//    }};
+
+    /* virtual elem can solve init idx-size issue and support compaction */
+    private static VirtElemSupportedArrList<LogEntry> entries = new VirtElemSupportedArrList<>(INIT_VIRT_ENTRY_CNT);
 
     /* global(remote): last idx of entries which is replicated to the majority of the cluster (committed)
      * is the criteria of 'is it safe to apply?' */
@@ -156,20 +164,20 @@ public final class NodeState {
         }
 
         if ((!Role.LEADER.equals(NodeState.role)) && Role.LEADER.equals(newRole)) {
-            log.info("role transfer to {}, reset followerReplicatedIdxMap to {}", newRole, entries.size());
-            initFollowerReplicatedIdxMap(entries.size() - 1);
+            log.info("role transfer to {}, reset followerReplicatedIdxMap to {}", newRole, entries.totalSize() - 1);
+            initFollowerReplicatedIdxMap(entries.totalSize() - 1);
         }
 
         log.warn("role transfer applied: {} -> {}", role.toString(), newRole.toString());
         role = newRole;
     }
 
-    static void initParamPack(RemoteCommunicationParamPack paramPack) {
+    static void initParamPack(RemoteIoParamPack paramPack) {
         NodeState.paramPack = paramPack;
     }
 
     static void initFollowerReplicatedIdxMap() {
-        initFollowerReplicatedIdxMap(-1);
+        initFollowerReplicatedIdxMap(INIT_NO_REPLICATED_LOG_LAST_IDX);
     }
 
     private static void initFollowerReplicatedIdxMap(int newVal) {
@@ -183,7 +191,7 @@ public final class NodeState {
         );
     }
 
-    public static RemoteCommunicationParamPack paramPack() {
+    public static RemoteIoParamPack paramPack() {
         return paramPack;
     }
 
@@ -240,7 +248,7 @@ public final class NodeState {
     }
 
     public static synchronized int lastReplicatedLogIdx() {
-        return entries.isEmpty() ? -1 : entries.size() - 1;
+        return entries.isEmpty() ? -1 : entries.totalSize() - 1;
     }
 
     public static synchronized int lastReplicatedLogTerm() {
@@ -250,7 +258,7 @@ public final class NodeState {
     /* LEADER use only */
     private static synchronized void recalculateCommittedIdx() {
         List<Integer> replicatedIdx = new ArrayList<>(followerReplicatedIdxMap.values());
-        replicatedIdx.add(entries.size() - 1);
+        replicatedIdx.add(entries.totalSize() - 1);
 
         log.info("we have replicated idx {} currently in cluster", replicatedIdx);
 
@@ -278,7 +286,7 @@ public final class NodeState {
             return;
         }
 
-        final int oldLastReplicatedLogIdx = followerReplicatedIdxMap.getOrDefault(followerPort, -1);
+        final int oldLastReplicatedLogIdx = followerReplicatedIdxMap.getOrDefault(followerPort, INIT_NO_REPLICATED_LOG_LAST_IDX);
 
         if (oldLastReplicatedLogIdx > lastReplicatedLogIdx) {
             log.warn("follower {}'s lastReplicatedLogIdx may need fix from {} to {} due to inconsistency", followerPort, oldLastReplicatedLogIdx, lastReplicatedLogIdx);
@@ -315,7 +323,7 @@ public final class NodeState {
     }
 
     private synchronized static void truncatePersistEntryUnaltered(int toIdxExclusive) {
-        entries = new ArrayList<>(entries.subList(0, toIdxExclusive));
+        entries = new VirtElemSupportedArrList<>(entries.subList(0, toIdxExclusive), INIT_VIRT_ENTRY_CNT);
         persistManager.truncateLogEntry(toIdxExclusive);
     }
 
@@ -335,10 +343,10 @@ public final class NodeState {
             return context;
         }
 
-        if (prevLogIdx > entries.size() - 1) {
+        if (prevLogIdx > entries.totalSize() - 1) {
             log.warn("seems that we lost some of the entries, report issue");
 
-            context.setLastReplicatedLogIdx(entries.size() - 1);
+            context.setLastReplicatedLogIdx(entries.totalSize() - 1);
             context.setNeedRespond(true);
             return context;
         }
@@ -361,7 +369,7 @@ public final class NodeState {
 
         /* >> append log */
         boolean safeToApply = false;
-        int currentLastIdx = entries.size() - 1;
+        int currentLastIdx = entries.totalSize() - 1;
         if (currentLastIdx < prevLogIdx) {
             log.error("currentLastIdx {} < prevLogIdx {}, may create a hole in entries, ignore appending but inform leader", currentLastIdx, prevLogIdx);
 
@@ -399,7 +407,7 @@ public final class NodeState {
         }
 
         /* setup necessary info */
-        context.setLastReplicatedLogIdx(entries.size() - 1);
+        context.setLastReplicatedLogIdx(entries.totalSize() - 1);
 
         return context;
     }
@@ -422,8 +430,8 @@ public final class NodeState {
 
     /* LEADER direct use only, but do not do role check */
     private synchronized static void applyEntry() {
-        if (leaderCommittedIdx >= entries.size()) {
-            log.error("we have an illegal apply issue, leaderCommittedIdx {} >= entries.size() {}, give up", leaderCommittedIdx, entries.size());
+        if (leaderCommittedIdx >= entries.totalSize()) {
+            log.error("we have an illegal apply issue, leaderCommittedIdx {} >= entries.totalSize() {}, give up", leaderCommittedIdx, entries.totalSize());
             return;
         }
 
@@ -442,16 +450,16 @@ public final class NodeState {
     }
 
     public static FollowerResidualEntryInfo genResidualEntryInfoForFollower(final int followerPort) {
-        final int oldLastReplicatedLogIdx = followerReplicatedIdxMap.getOrDefault(followerPort, -1);
-        if (oldLastReplicatedLogIdx >= entries.size()) {
-            log.error("invalid state detected, oldLastReplicatedLogIdx {} >= entries.size() {}, try recovering by resetting related val", oldLastReplicatedLogIdx, entries.size());
-            followerReplicatedIdxMap.put(followerPort, -1);
+        final int oldLastReplicatedLogIdx = followerReplicatedIdxMap.getOrDefault(followerPort, INIT_NO_REPLICATED_LOG_LAST_IDX);
+        if (oldLastReplicatedLogIdx >= entries.totalSize()) {
+            log.error("invalid state detected, oldLastReplicatedLogIdx {} >= entries.totalSize() {}, try recovering by resetting related val", oldLastReplicatedLogIdx, entries.totalSize());
+            followerReplicatedIdxMap.put(followerPort, INIT_NO_REPLICATED_LOG_LAST_IDX);
         }
 
         FollowerResidualEntryInfo.FollowerResidualEntryInfoBuilder builder = FollowerResidualEntryInfo.builder();
         builder.prevLogIdx(oldLastReplicatedLogIdx);
 
-        if (oldLastReplicatedLogIdx < entries.size() - 1) {
+        if (oldLastReplicatedLogIdx < entries.totalSize() - 1) {
 
             /* setup necessary info */
             if (oldLastReplicatedLogIdx >= 0) {
@@ -461,7 +469,7 @@ public final class NodeState {
             log.info("follower {} already up-to-date as idx {}", followerPort, oldLastReplicatedLogIdx);
         }
 
-        return builder.residualLogs(new ArrayList<>(entries.subList(oldLastReplicatedLogIdx + 1, entries.size()))).build();
+        return builder.residualLogs(new ArrayList<>(entries.subList(oldLastReplicatedLogIdx + 1, entries.totalSize()))).build();
     }
 
     /* LEADER use only */
@@ -485,7 +493,7 @@ public final class NodeState {
     @ToString
     public static class FollowerAppendEntryResultContext {
         private boolean needRespond = true;
-        private int lastReplicatedLogIdx = -1;
+        private int lastReplicatedLogIdx = INIT_NO_REPLICATED_LOG_LAST_IDX;
         private int resToPort = -1;
     }
 }

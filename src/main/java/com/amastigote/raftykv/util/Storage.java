@@ -1,8 +1,10 @@
-package com.amastigote.raftykv;
+package com.amastigote.raftykv.util;
 
 import com.amastigote.raftykv.protocol.LogEntry;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,7 +16,7 @@ import java.util.function.Consumer;
  */
 @SuppressWarnings("JavaDoc")
 public final class Storage {
-    private Map<Object, Object> storageMap = new ConcurrentHashMap<>();
+    private Map<Object, TermTaggedValue> storageMap = new ConcurrentHashMap<>();
     private Consumer<LogEntry> commandExecutor = logEntry -> {
         final LogEntry.LogCommandType type = logEntry.getLogCommandType();
 
@@ -28,23 +30,37 @@ public final class Storage {
         }
     };
 
-    private void putAll(Collection<Map.Entry> entries) {
-        entries.parallelStream().forEach(e -> storageMap.put(e.getKey(), e.getValue()));
-    }
-
-    private void put(Map.Entry entry) {
-        storageMap.put(entry.getKey(), entry.getValue());
+    private void put(LogEntry entry) {
+        storageMap.put(entry.getKey(), entry);
     }
 
     public Object get(Object key) {
-        return storageMap.get(key);
+        return storageMap.get(key).getV();
     }
 
     private void remove(Object key) {
         storageMap.remove(key);
     }
 
-    void applyEntryCommands(List<LogEntry> logEntries) {
+    /* call from com.amastigote.raftykv.NodeState only */
+    public void applyEntryCommands(List<LogEntry> logEntries) {
         logEntries.parallelStream().forEachOrdered(commandExecutor);
+    }
+
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    public static class TermTaggedValue {
+        private int t;
+        private Object v;
+
+        public TermTaggedValue(int term, Object value) {
+            this.t = term;
+            this.v = value;
+        }
+
+        public TermTaggedValue(Object value) {
+            this.v = value;
+        }
     }
 }

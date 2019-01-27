@@ -1,5 +1,6 @@
-package com.amastigote.raftykv;
+package com.amastigote.raftykv.util;
 
+import com.amastigote.raftykv.NodeState;
 import io.netty.channel.Channel;
 import io.netty.util.internal.SocketUtils;
 import lombok.AllArgsConstructor;
@@ -14,13 +15,13 @@ import java.util.List;
  */
 @SuppressWarnings({"JavaDoc"})
 @Getter
-public class RemoteCommunicationParamPack {
+public class RemoteIoParamPack {
     public static final InetSocketAddress senderAddr = SocketUtils.socketAddress(
             "localhost", NodeState.nodePort()
     );
     private List<RemoteTarget> communicationTargets;
 
-    RemoteCommunicationParamPack(List<RemoteTarget> communicationTargets) {
+    public RemoteIoParamPack(List<RemoteTarget> communicationTargets) {
         this.communicationTargets = communicationTargets;
     }
 

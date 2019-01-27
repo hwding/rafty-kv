@@ -5,6 +5,7 @@ import com.amastigote.raftykv.handler.ClientHttpHandler;
 import com.amastigote.raftykv.handler.DoNothingInboundDatagramHandler;
 import com.amastigote.raftykv.handler.GeneralInboundDatagramHandler;
 import com.amastigote.raftykv.protocol.TimeSpan;
+import com.amastigote.raftykv.util.RemoteIoParamPack;
 import com.sun.net.httpserver.HttpServer;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
@@ -55,7 +56,7 @@ public class Bootstrap {
         }
 
         Random random = new Random();
-        List<RemoteCommunicationParamPack.RemoteTarget> communicationTargets = Stream
+        List<RemoteIoParamPack.RemoteTarget> communicationTargets = Stream
                 .of(desPorts)
                 .mapToInt(Integer::valueOf)
                 .mapToObj(port -> {
@@ -72,7 +73,7 @@ public class Bootstrap {
                                     .channel();
                             InetSocketAddress remoteAddr = new InetSocketAddress("localhost", port);
 
-                            return new RemoteCommunicationParamPack.RemoteTarget(
+                            return new RemoteIoParamPack.RemoteTarget(
                                     port, remoteChn, remoteAddr
                             );
                         } catch (Exception e) {
@@ -87,7 +88,7 @@ public class Bootstrap {
                 })
                 .collect(Collectors.toList());
 
-        RemoteCommunicationParamPack paramPack = new RemoteCommunicationParamPack(communicationTargets);
+        RemoteIoParamPack paramPack = new RemoteIoParamPack(communicationTargets);
         NodeState.initParamPack(paramPack);
         NodeState.initFollowerReplicatedIdxMap();
 

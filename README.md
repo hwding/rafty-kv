@@ -21,12 +21,11 @@ D Ongaro, JK Ousterhout - USENIX Annual Technical Conference, 2014 - usenix.org]
 #### Ongoing
 - Safety
 - Client interaction
+- Log compaction
 
 #### Todo
-
 - Cluster membership changes
 - Leadership transfer extension
-- Log compaction
 
 ### How-To
 #### Node start up argument

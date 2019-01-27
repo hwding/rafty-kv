@@ -1,9 +1,9 @@
 package com.amastigote.raftykv.procedure;
 
 import com.amastigote.raftykv.NodeState;
-import com.amastigote.raftykv.RemoteCommunicationParamPack;
 import com.amastigote.raftykv.protocol.GeneralMsg;
 import com.amastigote.raftykv.protocol.MsgType;
+import com.amastigote.raftykv.util.RemoteIoParamPack;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.socket.DatagramPacket;
@@ -41,7 +41,7 @@ public class RequestVoteProcedure extends Thread {
                 outputStream.writeObject(msg);
                 byte[] objBuf = byteArrayOutputStream.toByteArray();
                 ByteBuf content = Unpooled.copiedBuffer(objBuf);
-                DatagramPacket packet = new DatagramPacket(content, t.getSocketAddress(), RemoteCommunicationParamPack.senderAddr);
+                DatagramPacket packet = new DatagramPacket(content, t.getSocketAddress(), RemoteIoParamPack.senderAddr);
 
                 t.getChannel().writeAndFlush(packet).addListener(future -> {
                     if (!future.isSuccess()) {

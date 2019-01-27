@@ -1,8 +1,8 @@
 package com.amastigote.raftykv.handler;
 
 import com.amastigote.raftykv.NodeState;
-import com.amastigote.raftykv.Storage;
 import com.amastigote.raftykv.protocol.LogEntry;
+import com.amastigote.raftykv.util.Storage;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import io.netty.handler.codec.http.HttpMethod;

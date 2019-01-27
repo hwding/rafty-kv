@@ -1,9 +1,9 @@
 package com.amastigote.raftykv.procedure;
 
 import com.amastigote.raftykv.NodeState;
-import com.amastigote.raftykv.RemoteCommunicationParamPack;
 import com.amastigote.raftykv.protocol.GeneralMsg;
 import com.amastigote.raftykv.protocol.MsgType;
+import com.amastigote.raftykv.util.RemoteIoParamPack;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.socket.DatagramPacket;
@@ -75,7 +75,7 @@ public class VoteForCandidateProcedure extends Thread {
                 return;
             }
 
-            Optional<RemoteCommunicationParamPack.RemoteTarget> targetOptional = NodeState
+            Optional<RemoteIoParamPack.RemoteTarget> targetOptional = NodeState
                     .paramPack()
                     .getCommunicationTargets()
                     .parallelStream()
@@ -87,7 +87,7 @@ public class VoteForCandidateProcedure extends Thread {
                 return;
             }
 
-            RemoteCommunicationParamPack.RemoteTarget target = targetOptional.get();
+            RemoteIoParamPack.RemoteTarget target = targetOptional.get();
 
             GeneralMsg msg = new GeneralMsg();
             msg.setMsgType(MsgType.ELECT);
@@ -102,7 +102,7 @@ public class VoteForCandidateProcedure extends Thread {
                 outputStream.writeObject(msg);
                 byte[] objBuf = byteArrayOutputStream.toByteArray();
                 ByteBuf content = Unpooled.copiedBuffer(objBuf);
-                DatagramPacket packet = new DatagramPacket(content, target.getSocketAddress(), RemoteCommunicationParamPack.senderAddr);
+                DatagramPacket packet = new DatagramPacket(content, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
 
                 target.getChannel().writeAndFlush(packet).addListener(future -> {
                     if (!future.isSuccess()) {
