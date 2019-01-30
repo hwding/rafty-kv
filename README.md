@@ -1,5 +1,5 @@
 # rafty-kv
-![](https://img.shields.io/badge/Powered%20by-Raft%20Algorithm-orange.svg?style=flat-square)  
+![](https://img.shields.io/badge/Powered%20by-Raft%20Algorithm-orange.svg?style=flat-square)  [![](https://img.shields.io/badge/Tuned%20by-Java%20Profiler-blue.svg?style=flat-square)](https://www.ej-technologies.com/products/jprofiler/overview.html)  
 A local running, process-distributed KV store for learning purposes based on replica state machine(RSM) cluster which implements raft consensus algorithm in a fully asynchronous way.
 ### Introduction
 #### Implementation
