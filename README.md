@@ -1,6 +1,6 @@
 # rafty-kv
 ![](https://img.shields.io/badge/Powered%20by-Raft%20Algorithm-orange.svg?style=flat-square)  
-A local running, distributed KV store for learning purposes based on replica state machine(RSM) cluster which implements raft consensus algorithm in a fully asynchronous way.
+A local running, process-distributed KV store for learning purposes based on replica state machine(RSM) cluster which implements raft consensus algorithm in a fully asynchronous way.
 ### Introduction
 #### Implementation
 Using netty's event-driven udp for async communication among nodes inside the cluster.  
