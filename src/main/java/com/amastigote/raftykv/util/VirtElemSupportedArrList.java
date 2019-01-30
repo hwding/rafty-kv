@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * @author: hwding
@@ -39,5 +40,10 @@ public class VirtElemSupportedArrList<X> extends ArrayList<X> {
     @Override
     public int size() {
         throw new UnsupportedOperationException("use virtualSize(), actualSize() or totalSize() instead!");
+    }
+
+    @Override
+    public List<X> subList(int fromIndex, int toIndex) {
+        return super.subList(fromIndex - virtSize, toIndex - virtSize);
     }
 }
