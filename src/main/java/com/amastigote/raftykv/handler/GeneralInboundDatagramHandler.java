@@ -37,7 +37,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
 
         /* deserialize GeneralMsg */
         GeneralMsg msg;
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteBuf.array());
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
         ObjectInputStream stream = new ObjectInputStream(byteArrayInputStream);
         msg = (GeneralMsg) stream.readUnshared();
 
