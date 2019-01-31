@@ -297,6 +297,8 @@ final class AppendableStateSerializer {
         ObjectOutputStream objOutStream = new ObjectOutputStream(byteArrOutStream);
 
         objOutStream.flush();
+
+        /* better not un-share this obj, risk of oom? remember input */
         objOutStream.writeObject(key);
         byte[] keyBytes = byteArrOutStream.toByteArray();
         int keyLen = keyBytes.length;
@@ -306,6 +308,8 @@ final class AppendableStateSerializer {
             objOutStream = new ObjectOutputStream(byteArrOutStream);
 
             objOutStream.flush();
+
+            /* better not un-share this obj, risk of oom? remember input */
             objOutStream.writeObject(val);
             byte[] valBytes = byteArrOutStream.toByteArray();
             int valLen = valBytes.length;

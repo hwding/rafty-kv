@@ -7,7 +7,7 @@ import com.amastigote.raftykv.protocol.MsgType;
 import com.amastigote.raftykv.protocol.TimeSpan;
 import com.amastigote.raftykv.util.RemoteIoParamPack;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.socket.DatagramPacket;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,7 +22,19 @@ import java.io.ObjectOutputStream;
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "[HEARTBEAT THREAD]")
 public class HeartBeatThread extends Thread {
+    private ByteArrayOutputStream byteArrayOutputStream;
+    private ObjectOutputStream outputStream;
 
+    public HeartBeatThread() {
+        byteArrayOutputStream = new ByteArrayOutputStream();
+        try {
+            outputStream = new ObjectOutputStream(byteArrayOutputStream);
+        } catch (IOException e) {
+            log.error("error in construction", e);
+        }
+    }
+
+    @SuppressWarnings("Duplicates")
     @Override
     public void run() {
         while (!super.isInterrupted()) {
@@ -30,7 +42,6 @@ public class HeartBeatThread extends Thread {
             try {
                 NodeState.paramPack()
                         .getCommunicationTargets()
-                        .parallelStream()
                         .forEach(target -> {
                             try {
                                 final int targetPort = target.getPort();
@@ -47,13 +58,13 @@ public class HeartBeatThread extends Thread {
                                 msg.setPrevLogIdx(residualLogs.getPrevLogIdx());
                                 msg.setPrevLogTerm(residualLogs.getPrevLogTerm());
 
-                                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                                ObjectOutputStream outputStream = new ObjectOutputStream(byteArrayOutputStream);
-                                outputStream.writeObject(msg);
-                                byte[] objBuf = byteArrayOutputStream.toByteArray();
+                                outputStream.writeUnshared(msg);
+                                final byte[] objBuf = byteArrayOutputStream.toByteArray();
 
-                                ByteBuf content = Unpooled.copiedBuffer(objBuf);
-                                DatagramPacket packet = new DatagramPacket(content, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
+                                ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(objBuf.length);
+                                buf.writeBytes(objBuf);
+
+                                final DatagramPacket packet = new DatagramPacket(buf, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
 
                                 target.getChannel().writeAndFlush(packet).addListener(future -> {
                                     if (!future.isSuccess()) {
@@ -70,6 +81,13 @@ public class HeartBeatThread extends Thread {
             } catch (InterruptedException e) {
                 log.info("heartbeat thread has been stopped, exit");
                 break;
+            } finally {
+                try {
+                    byteArrayOutputStream.close();
+                    outputStream.close();
+                } catch (IOException e) {
+                    log.warn("error when closing stream", e);
+                }
             }
             log.info("round end...");
         }

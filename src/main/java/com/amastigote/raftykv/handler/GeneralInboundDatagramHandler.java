@@ -26,6 +26,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
     private final HeartbeatWatchdogResetInvoker heartbeatWatchdogResetInvoker = new HeartbeatWatchdogResetInvoker();
     private final TermResetInvoker termResetInvoker = new TermResetInvoker();
 
+    /* be aware of the msg is auto released in outer wrapper method channelRead() */
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, DatagramPacket datagramPacket) throws Exception {
 
@@ -36,22 +37,28 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
 
         /* deserialize GeneralMsg */
         GeneralMsg msg;
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteBuf.array());
         ObjectInputStream stream = new ObjectInputStream(byteArrayInputStream);
-        msg = (GeneralMsg) stream.readObject();
+        msg = (GeneralMsg) stream.readUnshared();
 
-        log.info("udp datagram recv: {}", msg);
+        log.debug("udp datagram recv: {}", msg);
+
+        byteArrayInputStream.close();
+        stream.close();
 
         /* reInit term if msg's term is higher */
         int compareToRecvTerm = this.termResetInvoker.apply(msg.getTerm());
 
-        /* ignore any lower term heartbeat, mostly consider for the CANDIDATE situation */
-        if ((compareToRecvTerm <= 0) && MsgType.ELECT.equals(msg.getMsgType())) {
+        /* ignore any lower term heartbeat */
+        if (compareToRecvTerm > 0) {
+            return;
+        }
+
+        if (MsgType.ELECT.equals(msg.getMsgType())) {
             ElectMsgDispatcher.dispatch(msg, compareToRecvTerm, this.heartbeatWatchdogResetInvoker);
         }
 
-        /* ignore any lower term heartbeat */
-        if ((compareToRecvTerm <= 0) && MsgType.HEARTBEAT.equals(msg.getMsgType())) {
+        if (MsgType.HEARTBEAT.equals(msg.getMsgType())) {
             HeartbeatMsgDispatcher.dispatch(msg, this.heartbeatWatchdogResetInvoker);
         }
     }
@@ -63,7 +70,7 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
             synchronized (NodeState.class) {
                 if (!NodeState.heartBeatWatchdogThread().isAlive()) {
                     NodeState.rstHeartBeatWatchdogThread(true);
-                    log.info("heartBeatWatchdogThread reset and start");
+                    log.debug("heartBeatWatchdogThread reset and start");
                 } else if (needResetTimerIfAlreadyActive) {
                     NodeState.heartBeatWatchdogThread().interrupt();
                 }

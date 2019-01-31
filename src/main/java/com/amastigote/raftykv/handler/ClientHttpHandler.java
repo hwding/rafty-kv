@@ -31,11 +31,15 @@ public class ClientHttpHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange httpExchange) throws IOException {
-        /* TODO: do role check and redirect before responding */
+        /* FIXME: THIS IS ONLY A TEST UTIL, A TEMP SOLUTION */
 
-        final String req = new BufferedReader(new InputStreamReader(httpExchange.getRequestBody()))
+        final InputStreamReader reader = new InputStreamReader(httpExchange.getRequestBody());
+        final String req = new BufferedReader(reader)
                 .lines()
                 .collect(Collectors.joining());
+
+        reader.close();
+
         final String httpRequestMethod = httpExchange.getRequestMethod().toUpperCase();
 
         log.info("incoming client req: [{}] {}", httpRequestMethod, req);

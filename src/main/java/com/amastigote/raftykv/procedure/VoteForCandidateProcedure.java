@@ -5,13 +5,14 @@ import com.amastigote.raftykv.protocol.GeneralMsg;
 import com.amastigote.raftykv.protocol.MsgType;
 import com.amastigote.raftykv.util.RemoteIoParamPack;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.socket.DatagramPacket;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -96,13 +97,16 @@ public class VoteForCandidateProcedure extends Thread {
             msg.setTerm(candidateTerm);
 
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            ObjectOutputStream outputStream;
+            ObjectOutputStream outputStream = null;
             try {
                 outputStream = new ObjectOutputStream(byteArrayOutputStream);
-                outputStream.writeObject(msg);
+                outputStream.writeUnshared(msg);
                 byte[] objBuf = byteArrayOutputStream.toByteArray();
-                ByteBuf content = Unpooled.copiedBuffer(objBuf);
-                DatagramPacket packet = new DatagramPacket(content, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
+
+                ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(objBuf.length);
+                buf.writeBytes(objBuf);
+
+                DatagramPacket packet = new DatagramPacket(buf, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
 
                 target.getChannel().writeAndFlush(packet).addListener(future -> {
                     if (!future.isSuccess()) {
@@ -115,6 +119,13 @@ public class VoteForCandidateProcedure extends Thread {
 
             } catch (IOException e) {
                 log.error("error when sending datagram", e);
+            } finally {
+                try {
+                    byteArrayOutputStream.close();
+                    Objects.requireNonNull(outputStream).close();
+                } catch (IOException e) {
+                    log.warn("error when closing stream", e);
+                }
             }
         }
         log.info("VoteForCandidateProcedure end...");
