@@ -7,6 +7,7 @@ import com.amastigote.raftykv.protocol.MsgType;
 import com.amastigote.raftykv.protocol.TimeSpan;
 import com.amastigote.raftykv.util.RemoteIoParamPack;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.socket.DatagramPacket;
 import lombok.extern.slf4j.Slf4j;
@@ -59,10 +60,10 @@ public class HeartBeatThread extends Thread {
                                 msg.setPrevLogTerm(residualLogs.getPrevLogTerm());
 
                                 outputStream.writeUnshared(msg);
-                                final byte[] objBuf = byteArrayOutputStream.toByteArray();
 
-                                ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(objBuf.length);
-                                buf.writeBytes(objBuf);
+                                ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(byteArrayOutputStream.size());
+                                ByteBufOutputStream byteBufOutputStream = new ByteBufOutputStream(buf);
+                                byteArrayOutputStream.writeTo(byteBufOutputStream);
 
                                 final DatagramPacket packet = new DatagramPacket(buf, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
 

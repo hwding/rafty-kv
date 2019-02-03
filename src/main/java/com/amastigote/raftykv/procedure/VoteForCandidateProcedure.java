@@ -5,6 +5,7 @@ import com.amastigote.raftykv.protocol.GeneralMsg;
 import com.amastigote.raftykv.protocol.MsgType;
 import com.amastigote.raftykv.util.RemoteIoParamPack;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.socket.DatagramPacket;
 import lombok.extern.slf4j.Slf4j;
@@ -101,10 +102,10 @@ public class VoteForCandidateProcedure extends Thread {
             try {
                 outputStream = new ObjectOutputStream(byteArrayOutputStream);
                 outputStream.writeUnshared(msg);
-                byte[] objBuf = byteArrayOutputStream.toByteArray();
 
-                ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(objBuf.length);
-                buf.writeBytes(objBuf);
+                ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(byteArrayOutputStream.size());
+                ByteBufOutputStream byteBufOutputStream = new ByteBufOutputStream(buf);
+                byteArrayOutputStream.writeTo(byteBufOutputStream);
 
                 DatagramPacket packet = new DatagramPacket(buf, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
 
