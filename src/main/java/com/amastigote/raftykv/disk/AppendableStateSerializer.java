@@ -81,6 +81,7 @@ final class AppendableStateSerializer {
             /* write header with init val */
             persistCurTerm(NodeState.INIT_CUR_TERM);
             persistVotedFor(NodeState.INIT_VOTED_FOR);
+            persistVirtSz(NodeState.INIT_VIRT_ENTRY_CNT);
 
             log.debug("new persist file init to pos {}", pFile.length());
         }
