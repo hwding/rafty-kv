@@ -211,9 +211,9 @@ final class AppendableStateSerializer {
     }
 
     @SuppressWarnings("Duplicates")
-    void truncateLogEntry(final int toIdxExclusive) throws Exception {
+    void truncateLogEntry(final int toIdxInclusive) throws Exception {
 
-        if (toIdxExclusive > lastPersistedEntryIdx) {
+        if (toIdxInclusive > lastPersistedEntryIdx) {
             log.warn("no need to truncate, entry not included in persist file, be aware that this could not happen");
             return;
         }
@@ -237,7 +237,7 @@ final class AppendableStateSerializer {
                 log.info("cache miss");
             }
 
-            while (nextIdx < toIdxExclusive) {
+            while (nextIdx < toIdxInclusive) {
                 byte[] partEntryHead = new byte[1 + 4 + 4];
 
                 readLen = pFile.read(partEntryHead);
@@ -277,7 +277,7 @@ final class AppendableStateSerializer {
             pFile.setLength(curPos);
 
             lastPersistedEntryIdx = nextIdx - 1;
-            cache.evict(toIdxExclusive);
+            cache.evict(toIdxInclusive);
 
             log.debug("log file truncated to idx inclusive {}, current file len {}", lastPersistedEntryIdx, pFile.length());
         }
@@ -419,12 +419,12 @@ final class AppendableStateSerializer {
             return null;
         }
 
-        private synchronized void evict(int toIdxExclusive) {
+        private synchronized void evict(int toIdxInclusive) {
             final int init = (next + cacheSize - 1) % cacheSize;
             int prev = init;
 
             do {
-                if (idxArr[prev] < toIdxExclusive) {
+                if (idxArr[prev] < toIdxInclusive) {
                     break;
                 }
 

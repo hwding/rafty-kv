@@ -324,7 +324,7 @@ public final class NodeState {
 
     private synchronized static void truncatePersistEntryUnaltered(int toIdxExclusive) {
         entries = new VirtElemSupportedArrList<>(entries.subList(0, toIdxExclusive), INIT_VIRT_ENTRY_CNT);
-        persistManager.truncateLogEntry(toIdxExclusive);
+        persistManager.truncateLogEntry(toIdxExclusive - 1);
     }
 
     /* FOLLOWER use only */
