@@ -1,17 +1,17 @@
 package com.amastigote.raftykv.util;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 /**
+ * An extended ArrayList which supports virtual nodes.
+ * Be aware that only accessing the override method is semantically safe.
+ *
  * @author: hwding
  * @date: 2019/1/27
  */
 @SuppressWarnings("JavaDoc")
-@Slf4j(topic = "[V-LIST]")
 public class VirtElemSupportedArrList<X> extends ArrayList<X> {
     private int virtSize;
 
@@ -45,5 +45,21 @@ public class VirtElemSupportedArrList<X> extends ArrayList<X> {
     @Override
     public List<X> subList(int fromIndex, int toIndex) {
         return super.subList(fromIndex - virtSize, toIndex - virtSize);
+    }
+
+    @Override
+    public void clear() {
+        this.virtSize = 0;
+        super.clear();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return super.isEmpty() && (0 == virtSize);
+    }
+
+    @Override
+    public X get(int index) {
+        return super.get(index - virtSize);
     }
 }
