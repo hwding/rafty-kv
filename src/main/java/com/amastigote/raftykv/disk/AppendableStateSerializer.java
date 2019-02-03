@@ -29,6 +29,7 @@ import java.util.Objects;
  * --------HEAD---------
  * 1) len 4, current-term
  * 2) len 4, voted-for
+ * 3) len 4, virtual size (remain successive log id after compaction)
  * ------LOG-ENTRY------ (repeatedly)
  * 3) len 1, log op, 0x00 for PUT, not 0x00 (use 0x0F) for REMOVE
  * 4) len 4, entry's term
@@ -44,6 +45,11 @@ import java.util.Objects;
 final class AppendableStateSerializer {
     private static final byte OP_PUT = 0x00;
     private static final byte OP_RMV = 0x0F;
+
+    /**
+     * Size of fixed head, see HEAD description.
+     */
+    private static final int SZ_FILE_HEAD = 4 + 4 + 4;
 
     private final Object lock = new Object();
 
@@ -81,17 +87,24 @@ final class AppendableStateSerializer {
         log.info("persist file init ok");
     }
 
-    void persistCurTerm(int newCurTerm) throws IOException {
+    void persistCurTerm(int newVal) throws IOException {
         synchronized (lock) {
             pFile.seek(0);
-            pFile.writeInt(newCurTerm);
+            pFile.writeInt(newVal);
         }
     }
 
-    void persistVotedFor(int newVotedFor) throws IOException {
+    void persistVotedFor(int newVal) throws IOException {
         synchronized (lock) {
             pFile.seek(4);
-            pFile.writeInt(newVotedFor);
+            pFile.writeInt(newVal);
+        }
+    }
+
+    void persistVirtSz(int newVal) throws IOException {
+        synchronized (lock) {
+            pFile.seek(8);
+            pFile.writeInt(newVal);
         }
     }
 
@@ -101,6 +114,10 @@ final class AppendableStateSerializer {
 
     int recoverVotedFor() throws IOException {
         return recoverInt(4);
+    }
+
+    int recoverVirtSz() throws IOException {
+        return recoverInt(8);
     }
 
     private int recoverInt(int offset) throws IOException {
@@ -138,7 +155,7 @@ final class AppendableStateSerializer {
         long entryPos;
 
         synchronized (lock) {
-            pFile.seek(8);
+            pFile.seek(SZ_FILE_HEAD);
             while (true) {
                 entryPos = pFile.getFilePointer();
 
@@ -224,14 +241,14 @@ final class AppendableStateSerializer {
             int readLen;
 
             /* load nearest checkpoint from cache */
-            LocationCheckpointCache.Result res = cache.get(toIdxExclusive);
+            LocationCheckpointCache.Result res = cache.get(toIdxInclusive);
             if (Objects.nonNull(res)) {
                 pFile.seek(res.getPos());
                 nextIdx = res.getIdx();
 
                 log.info("cache hit at checkpoint {}", res);
             } else {
-                pFile.seek(8);
+                pFile.seek(SZ_FILE_HEAD);
                 nextIdx = 0;
 
                 log.info("cache miss");
