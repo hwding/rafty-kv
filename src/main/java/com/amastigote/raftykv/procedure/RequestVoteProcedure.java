@@ -25,7 +25,7 @@ public class RequestVoteProcedure extends Thread {
 
     @Override
     public void run() {
-        log.info("RequestVoteProcedure start...");
+        log.info(">> RequestVoteProcedure start");
 
         NodeState.paramPack().getCommunicationTargets().parallelStream().forEach(t -> {
             GeneralMsg msg = new GeneralMsg();
@@ -71,6 +71,6 @@ public class RequestVoteProcedure extends Thread {
                 }
             }
         });
-        log.info("RequestVoteProcedure end...");
+        log.info("<< RequestVoteProcedure end");
     }
 }

@@ -14,7 +14,7 @@ public class ReElectionInitiateProcedure extends Thread {
 
     @Override
     public void run() {
-        log.info("ReElectionInitiateProcedure start...");
+        log.info(">> ReElectionInitiateProcedure start");
 
         long newTerm;
 
@@ -36,6 +36,6 @@ public class ReElectionInitiateProcedure extends Thread {
 
         new RequestVoteProcedure().start();
 
-        log.info("ReElectionInitiateProcedure end...");
+        log.info("<< ReElectionInitiateProcedure end");
     }
 }

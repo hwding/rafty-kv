@@ -42,7 +42,7 @@ public class VoteForCandidateProcedure extends Thread {
 
     @Override
     public void run() {
-        log.info("VoteForCandidateProcedure start...");
+        log.info(">> VoteForCandidateProcedure start");
 
         synchronized (NodeState.class) {
 
@@ -132,6 +132,6 @@ public class VoteForCandidateProcedure extends Thread {
                 }
             }
         }
-        log.info("VoteForCandidateProcedure end...");
+        log.info("<< VoteForCandidateProcedure end");
     }
 }
