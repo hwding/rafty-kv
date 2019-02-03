@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.Objects;
 
 /**
  * @author: hwding
@@ -39,11 +40,11 @@ public class HeartBeatThread extends Thread {
     @Override
     public void run() {
         while (!super.isInterrupted()) {
-            log.info("round start...");
             try {
                 NodeState.paramPack()
                         .getCommunicationTargets()
                         .forEach(target -> {
+                            ByteBufOutputStream byteBufOutputStream = null;
                             try {
                                 final int targetPort = target.getPort();
 
@@ -62,7 +63,7 @@ public class HeartBeatThread extends Thread {
                                 outputStream.writeUnshared(msg);
 
                                 ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(byteArrayOutputStream.size());
-                                ByteBufOutputStream byteBufOutputStream = new ByteBufOutputStream(buf);
+                                byteBufOutputStream = new ByteBufOutputStream(buf);
                                 byteArrayOutputStream.writeTo(byteBufOutputStream);
 
                                 final DatagramPacket packet = new DatagramPacket(buf, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
@@ -72,10 +73,16 @@ public class HeartBeatThread extends Thread {
                                         log.error("failed to send heartbeat to {}", targetPort);
                                         return;
                                     }
-                                    log.info("heartbeat sent to {}", targetPort);
+                                    log.debug("heartbeat sent to {}", targetPort);
                                 });
                             } catch (IOException e) {
-                                log.error("", e);
+                                log.error("error when sending heartbeat, remote: {}", target, e);
+                            } finally {
+                                try {
+                                    Objects.requireNonNull(byteBufOutputStream).close();
+                                } catch (IOException e) {
+                                    log.error("error when closing stream", e);
+                                }
                             }
                         });
                 Thread.sleep(TimeSpan.HEARTBEAT_SEND_INTERVAL);
@@ -90,7 +97,6 @@ public class HeartBeatThread extends Thread {
                     log.warn("error when closing stream", e);
                 }
             }
-            log.info("round end...");
         }
     }
 }

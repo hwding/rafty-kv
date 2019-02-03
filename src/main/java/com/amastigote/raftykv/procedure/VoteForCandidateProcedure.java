@@ -97,14 +97,16 @@ public class VoteForCandidateProcedure extends Thread {
 
             msg.setTerm(candidateTerm);
 
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ByteArrayOutputStream byteArrayOutputStream = null;
             ObjectOutputStream outputStream = null;
+            ByteBufOutputStream byteBufOutputStream = null;
             try {
+                byteArrayOutputStream = new ByteArrayOutputStream();
                 outputStream = new ObjectOutputStream(byteArrayOutputStream);
                 outputStream.writeUnshared(msg);
 
                 ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(byteArrayOutputStream.size());
-                ByteBufOutputStream byteBufOutputStream = new ByteBufOutputStream(buf);
+                byteBufOutputStream = new ByteBufOutputStream(buf);
                 byteArrayOutputStream.writeTo(byteBufOutputStream);
 
                 DatagramPacket packet = new DatagramPacket(buf, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
@@ -122,7 +124,8 @@ public class VoteForCandidateProcedure extends Thread {
                 log.error("error when sending datagram", e);
             } finally {
                 try {
-                    byteArrayOutputStream.close();
+                    Objects.requireNonNull(byteBufOutputStream).close();
+                    Objects.requireNonNull(byteArrayOutputStream).close();
                     Objects.requireNonNull(outputStream).close();
                 } catch (IOException e) {
                     log.warn("error when closing stream", e);

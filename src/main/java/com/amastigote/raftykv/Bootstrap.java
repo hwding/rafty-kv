@@ -7,10 +7,14 @@ import com.amastigote.raftykv.handler.GeneralInboundDatagramHandler;
 import com.amastigote.raftykv.protocol.TimeSpan;
 import com.amastigote.raftykv.util.RemoteIoParamPack;
 import com.sun.net.httpserver.HttpServer;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
+import io.netty.util.ResourceLeakDetector;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -31,7 +35,10 @@ import java.util.stream.Stream;
 public class Bootstrap {
 
     public static void main(String[] args) {
-        log.info("init...");
+        log.info(">> init");
+
+        /* log in DEBUG level */
+        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.ADVANCED);
 
         NodeGlobalConf.init();
         TimeSpan.init();
@@ -66,6 +73,7 @@ public class Bootstrap {
                         try {
                             Channel remoteChn = new io.netty.bootstrap.Bootstrap()
                                     .group(loopGroup)
+                                    .option(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT)
                                     .channel(NioDatagramChannel.class)
                                     .handler(doNothingInboundDatagramHandler)
                                     .bind(randPort)
@@ -99,6 +107,7 @@ public class Bootstrap {
 
         new io.netty.bootstrap.Bootstrap()
                 .group(loopGroup)
+                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                 .channel(NioDatagramChannel.class)
                 .handler(generalInboundDatagramHandler)
                 .bind(NodeState.nodePort());
@@ -116,6 +125,6 @@ public class Bootstrap {
         }
         /* << server for client init */
 
-        log.info("init ok");
+        log.info("<< init ok");
     }
 }

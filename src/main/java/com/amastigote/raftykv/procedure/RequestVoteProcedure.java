@@ -39,6 +39,7 @@ public class RequestVoteProcedure extends Thread {
 
             ByteArrayOutputStream byteArrayOutputStream = null;
             ObjectOutputStream outputStream = null;
+            ByteBufOutputStream byteBufOutputStream = null;
             try {
                 byteArrayOutputStream = new ByteArrayOutputStream();
                 outputStream = new ObjectOutputStream(byteArrayOutputStream);
@@ -46,7 +47,7 @@ public class RequestVoteProcedure extends Thread {
                 outputStream.writeUnshared(msg);
 
                 ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(byteArrayOutputStream.size());
-                ByteBufOutputStream byteBufOutputStream = new ByteBufOutputStream(buf);
+                byteBufOutputStream = new ByteBufOutputStream(buf);
                 byteArrayOutputStream.writeTo(byteBufOutputStream);
 
                 DatagramPacket packet = new DatagramPacket(buf, t.getSocketAddress(), RemoteIoParamPack.senderAddr);
@@ -62,6 +63,7 @@ public class RequestVoteProcedure extends Thread {
                 log.error("error when sending datagram", e);
             } finally {
                 try {
+                    Objects.requireNonNull(byteBufOutputStream).close();
                     Objects.requireNonNull(byteArrayOutputStream).close();
                     Objects.requireNonNull(outputStream).close();
                 } catch (Exception e) {

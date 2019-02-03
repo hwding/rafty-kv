@@ -32,7 +32,7 @@ public class ReplyAppendEntryResultProcedure implements Runnable {
     @SuppressWarnings("Duplicates")
     @Override
     public void run() {
-        log.info("ReplyAppendEntryResultProcedure start...");
+        log.info(">> ReplyAppendEntryResultProcedure start");
         GeneralMsg msg = new GeneralMsg();
         msg.setTerm(NodeState.currentTerm());
         msg.setMsgType(MsgType.HEARTBEAT);
@@ -54,14 +54,16 @@ public class ReplyAppendEntryResultProcedure implements Runnable {
 
         RemoteIoParamPack.RemoteTarget target = targetOptional.get();
 
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream byteArrayOutputStream = null;
+        ByteBufOutputStream byteBufOutputStream = null;
         ObjectOutputStream outputStream = null;
         try {
+            byteArrayOutputStream = new ByteArrayOutputStream();
             outputStream = new ObjectOutputStream(byteArrayOutputStream);
             outputStream.writeUnshared(msg);
 
             ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(byteArrayOutputStream.size());
-            ByteBufOutputStream byteBufOutputStream = new ByteBufOutputStream(buf);
+            byteBufOutputStream = new ByteBufOutputStream(buf);
             byteArrayOutputStream.writeTo(byteBufOutputStream);
 
             DatagramPacket packet = new DatagramPacket(buf, target.getSocketAddress(), RemoteIoParamPack.senderAddr);
@@ -76,13 +78,14 @@ public class ReplyAppendEntryResultProcedure implements Runnable {
             log.error("error when sending datagram", e);
         } finally {
             try {
-                byteArrayOutputStream.close();
+                Objects.requireNonNull(byteBufOutputStream).close();
+                Objects.requireNonNull(byteArrayOutputStream).close();
                 Objects.requireNonNull(outputStream).close();
             } catch (IOException e) {
                 log.warn("error when closing stream", e);
             }
         }
 
-        log.info("ReplyAppendEntryResultProcedure end...");
+        log.info("<< ReplyAppendEntryResultProcedure end");
     }
 }

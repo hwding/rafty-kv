@@ -6,12 +6,12 @@ import com.amastigote.raftykv.handler.msg.HeartbeatMsgDispatcher;
 import com.amastigote.raftykv.protocol.GeneralMsg;
 import com.amastigote.raftykv.protocol.MsgType;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.util.function.Function;
 
@@ -31,19 +31,16 @@ public class GeneralInboundDatagramHandler extends SimpleChannelInboundHandler<D
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, DatagramPacket datagramPacket) throws Exception {
 
         final ByteBuf byteBuf = datagramPacket.content();
-        final byte[] bytes = new byte[byteBuf.readableBytes()];
-
-        byteBuf.readBytes(bytes);
+        final ByteBufInputStream byteBufInputStream = new ByteBufInputStream(byteBuf);
 
         /* deserialize GeneralMsg */
         GeneralMsg msg;
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-        ObjectInputStream stream = new ObjectInputStream(byteArrayInputStream);
+        ObjectInputStream stream = new ObjectInputStream(byteBufInputStream);
         msg = (GeneralMsg) stream.readUnshared();
 
         log.debug("udp datagram recv: {}", msg);
 
-        byteArrayInputStream.close();
+        byteBufInputStream.close();
         stream.close();
 
         /* reInit term if msg's term is higher */
