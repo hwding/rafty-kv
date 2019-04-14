@@ -269,7 +269,10 @@ public final class NodeState {
         if (lastMajorityReplicatedEntry.getTerm() < currentTerm) {
             log.info("previous term's log can only be committed indirectly, give up applying");
         } else if (leaderCommittedIdx < majorityReplicatedIdx) {
-            log.info("we have recalculate a new majorityReplicatedIdx as {}, ready to commit and apply", majorityReplicatedIdx);
+            log.info(
+                    "we have recalculate a new majorityReplicatedIdx as {}, ready to commit and apply",
+                    majorityReplicatedIdx
+            );
 
             leaderCommittedIdx = majorityReplicatedIdx;
             applyEntry();
