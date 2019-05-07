@@ -24,17 +24,6 @@ import java.util.Objects;
 @SuppressWarnings("JavaDoc")
 @Slf4j(topic = "[HEARTBEAT THREAD]")
 public class HeartBeatThread extends Thread {
-    private ByteArrayOutputStream byteArrayOutputStream;
-    private ObjectOutputStream outputStream;
-
-    public HeartBeatThread() {
-        byteArrayOutputStream = new ByteArrayOutputStream();
-        try {
-            outputStream = new ObjectOutputStream(byteArrayOutputStream);
-        } catch (IOException e) {
-            log.error("error in construction", e);
-        }
-    }
 
     @SuppressWarnings("Duplicates")
     @Override
@@ -45,6 +34,8 @@ public class HeartBeatThread extends Thread {
                         .getCommunicationTargets()
                         .forEach(target -> {
                             ByteBufOutputStream byteBufOutputStream = null;
+                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                            ObjectOutputStream outputStream = null;
                             try {
                                 final int targetPort = target.getPort();
 
@@ -60,6 +51,7 @@ public class HeartBeatThread extends Thread {
                                 msg.setPrevLogIdx(residualLogs.getPrevLogIdx());
                                 msg.setPrevLogTerm(residualLogs.getPrevLogTerm());
 
+                                outputStream = new ObjectOutputStream(byteArrayOutputStream);
                                 outputStream.writeUnshared(msg);
 
                                 ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(byteArrayOutputStream.size());
@@ -70,7 +62,7 @@ public class HeartBeatThread extends Thread {
 
                                 target.getChannel().writeAndFlush(packet).addListener(future -> {
                                     if (!future.isSuccess()) {
-                                        log.error("failed to send heartbeat to {}", targetPort);
+                                        log.error("failed to send heartbeat to {}", targetPort, future.cause());
                                         return;
                                     }
                                     log.debug("heartbeat sent to {}", targetPort);
@@ -80,6 +72,12 @@ public class HeartBeatThread extends Thread {
                             } finally {
                                 try {
                                     Objects.requireNonNull(byteBufOutputStream).close();
+                                    try {
+                                        byteArrayOutputStream.close();
+                                        outputStream.close();
+                                    } catch (IOException e) {
+                                        log.warn("error when closing stream", e);
+                                    }
                                 } catch (IOException e) {
                                     log.error("error when closing stream", e);
                                 }
@@ -89,13 +87,6 @@ public class HeartBeatThread extends Thread {
             } catch (InterruptedException e) {
                 log.info("heartbeat thread has been stopped, exit");
                 break;
-            } finally {
-                try {
-                    byteArrayOutputStream.close();
-                    outputStream.close();
-                } catch (IOException e) {
-                    log.warn("error when closing stream", e);
-                }
             }
         }
     }
