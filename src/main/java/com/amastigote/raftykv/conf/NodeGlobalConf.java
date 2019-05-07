@@ -38,6 +38,8 @@ public final class NodeGlobalConf {
     public final static String KEY_ELECTION_TIMEOUT_MAX_MILLIS = CONFIGURATION_PREFIX + __KEY_ELECTION_TIMEOUT_MAX_MILLIS;
     private final static String __KEY_HEARTBEAT_INTERVAL_MILLIS = "heartbeatIntervalMillis";
     public final static String KEY_HEARTBEAT_INTERVAL_MILLIS = CONFIGURATION_PREFIX + __KEY_HEARTBEAT_INTERVAL_MILLIS;
+    private final static String __KEY_REPLICATE_SLICE_ENTRY_SIZE = "replicateSliceEntrySize";
+    public final static String KEY_REPLICATE_SLICE_ENTRY_SIZE = CONFIGURATION_PREFIX + __KEY_REPLICATE_SLICE_ENTRY_SIZE;
 
     private static final String DEFAULT_VAL_PERSIST_DIR = ".";
     private static final String DEFAULT_VAL_CHECKPOINT_CACHE_SIZE = "20";
@@ -49,7 +51,7 @@ public final class NodeGlobalConf {
     private final static String DEFAULT_VAL_ELECTION_TIMEOUT_MIN_MILLIS = "2500";
     private final static String DEFAULT_VAL_ELECTION_TIMEOUT_MAX_MILLIS = "4000";
     private final static String DEFAULT_VAL_HEARTBEAT_INTERVAL_MILLIS = "1500";
-
+    private final static String DEFAULT_VAL_REPLICATE_SLICE_ENTRY_SIZE = "5";
 
     private static final Map<String, String> defaultValMap;
 
@@ -66,6 +68,7 @@ public final class NodeGlobalConf {
         defaultValMap.put(KEY_ELECTION_TIMEOUT_MIN_MILLIS, DEFAULT_VAL_ELECTION_TIMEOUT_MIN_MILLIS);
         defaultValMap.put(KEY_ELECTION_TIMEOUT_MAX_MILLIS, DEFAULT_VAL_ELECTION_TIMEOUT_MAX_MILLIS);
         defaultValMap.put(KEY_HEARTBEAT_INTERVAL_MILLIS, DEFAULT_VAL_HEARTBEAT_INTERVAL_MILLIS);
+        defaultValMap.put(KEY_REPLICATE_SLICE_ENTRY_SIZE, DEFAULT_VAL_REPLICATE_SLICE_ENTRY_SIZE);
     }
 
     private NodeGlobalConf() {

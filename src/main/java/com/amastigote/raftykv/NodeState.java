@@ -1,5 +1,6 @@
 package com.amastigote.raftykv;
 
+import com.amastigote.raftykv.conf.NodeGlobalConf;
 import com.amastigote.raftykv.disk.PersistManager;
 import com.amastigote.raftykv.protocol.LogEntry;
 import com.amastigote.raftykv.protocol.Role;
@@ -52,6 +53,8 @@ public final class NodeState {
 
     private static PersistManager persistManager;
 
+    private static int replicateLogSliceSize;
+
     /* >> LEADER only
      * CAUTION: non-thread-safe, sync before altering data */
     /* highest idx of entry which replicated to follower */
@@ -76,6 +79,7 @@ public final class NodeState {
         NodeState.nodePort = nodePort;
         NodeState.totalNodeCnt = totalNodeCnt;
         NodeState.followerReplicatedIdxMap = new HashMap<>(totalNodeCnt - 1);
+        NodeState.replicateLogSliceSize = Integer.valueOf(NodeGlobalConf.readConf(NodeGlobalConf.KEY_REPLICATE_SLICE_ENTRY_SIZE));
 
         persistManager = PersistManager.getInstance();
         persistManager.recover();
@@ -474,7 +478,8 @@ public final class NodeState {
             log.info("follower {} already replicated to idx {}", followerPort, oldLastReplicatedLogIdx);
         }
 
-        return builder.residualLogs(new ArrayList<>(entries.subList(oldLastReplicatedLogIdx + 1, entries.totalSize()))).build();
+        int toIdx = Math.min(oldLastReplicatedLogIdx + 1 + replicateLogSliceSize, entries.totalSize());
+        return builder.residualLogs(new ArrayList<>(entries.subList(oldLastReplicatedLogIdx + 1, toIdx))).build();
     }
 
     /* LEADER use only */
