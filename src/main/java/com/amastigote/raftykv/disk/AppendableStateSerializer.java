@@ -236,23 +236,29 @@ final class AppendableStateSerializer {
             return;
         }
 
-        int nextIdx;
+        int nextIdx = 0;
 
         synchronized (lock) {
             int readLen;
 
-            /* load nearest checkpoint from cache */
-            LocationCheckpointCache.Result res = cache.get(toIdxInclusive);
-            if (Objects.nonNull(res)) {
-                pFile.seek(res.getPos());
-                nextIdx = res.getIdx();
+            if (toIdxInclusive < 0) {
+                log.info("truncate all as idx is {}", toIdxInclusive);
 
-                log.info("cache hit at checkpoint {}", res);
-            } else {
                 pFile.seek(SZ_FILE_HEAD);
-                nextIdx = 0;
+            } else {
 
-                log.info("cache miss");
+                /* load nearest checkpoint from cache */
+                LocationCheckpointCache.Result res = cache.get(toIdxInclusive);
+                if (Objects.nonNull(res)) {
+                    log.info("cache hit at checkpoint {}", res);
+
+                    pFile.seek(res.getPos());
+                    nextIdx = res.getIdx();
+                } else {
+                    log.info("cache miss");
+
+                    pFile.seek(SZ_FILE_HEAD);
+                }
             }
 
             while (nextIdx < toIdxInclusive) {
