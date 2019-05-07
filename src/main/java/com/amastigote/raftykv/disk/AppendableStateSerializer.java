@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -430,10 +431,13 @@ final class AppendableStateSerializer {
          * @return nearest idx location & pos before the ideal idx, null if not found
          */
         private synchronized Result get(int idealIdx) {
+            log.debug("cache idx: " + Arrays.toString(idxArr));
+            log.debug("cache pos: " + Arrays.toString(posArr));
+
             int prev = (next + cacheSize - 1) % cacheSize;
 
             do {
-                if (idxArr[prev] <= idealIdx) {
+                if (idxArr[prev] != INIT_VAL && idxArr[prev] <= idealIdx) {
                     return new Result(idxArr[prev], posArr[prev]);
                 }
 
