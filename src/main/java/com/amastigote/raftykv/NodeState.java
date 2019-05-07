@@ -16,7 +16,6 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author: hwding
@@ -28,7 +27,7 @@ public final class NodeState {
 
     public static final int INIT_CUR_TERM = 0;
     public static final int INIT_VOTED_FOR = 0;
-    public static final int INIT_VIRT_ENTRY_CNT = 1;
+    public static final int INIT_VIRT_ENTRY_CNT = 0;
     private static final int INIT_NO_REPLICATED_LOG_LAST_IDX = -1;
 
     private static int nodePort;
@@ -264,19 +263,25 @@ public final class NodeState {
 
         replicatedIdx.sort(null);
         int majorityReplicatedIdx = replicatedIdx.get(majorityNodeCnt() - 1);
-        LogEntry lastMajorityReplicatedEntry = entries.get(majorityReplicatedIdx);
 
+        if (leaderCommittedIdx >= majorityReplicatedIdx) {
+            log.info("majority replicated idx not meet commit standard, ignore");
+            return;
+        }
+
+        LogEntry lastMajorityReplicatedEntry = entries.get(majorityReplicatedIdx);
         if (lastMajorityReplicatedEntry.getTerm() < currentTerm) {
             log.info("previous term's log can only be committed indirectly, give up applying");
-        } else if (leaderCommittedIdx < majorityReplicatedIdx) {
-            log.info(
-                    "we have recalculate a new majorityReplicatedIdx as {}, ready to commit and apply",
-                    majorityReplicatedIdx
-            );
-
-            leaderCommittedIdx = majorityReplicatedIdx;
-            applyEntry();
+            return;
         }
+
+        log.info(
+                "we have recalculate a new majorityReplicatedIdx as {}, ready to commit and apply",
+                majorityReplicatedIdx
+        );
+
+        leaderCommittedIdx = majorityReplicatedIdx;
+        applyEntry();
     }
 
     /* LEADER use only */
@@ -308,10 +313,7 @@ public final class NodeState {
             return;
         }
 
-        entries = entries.stream()
-                .peek(e -> e.setTerm(currentTerm))
-                .collect(Collectors.toCollection(ArrayList::new));
-
+        entries.forEach(e -> e.setTerm(currentTerm));
         appendPersistEntryUnaltered(entries);
     }
 
@@ -469,7 +471,7 @@ public final class NodeState {
                 builder.prevLogTerm(entries.get(oldLastReplicatedLogIdx).getTerm());
             }
         } else {
-            log.info("follower {} already up-to-date as idx {}", followerPort, oldLastReplicatedLogIdx);
+            log.info("follower {} already replicated to idx {}", followerPort, oldLastReplicatedLogIdx);
         }
 
         return builder.residualLogs(new ArrayList<>(entries.subList(oldLastReplicatedLogIdx + 1, entries.totalSize()))).build();
@@ -481,13 +483,13 @@ public final class NodeState {
     public static final class FollowerResidualEntryInfo {
 
         @Builder.Default
-        private List<LogEntry> residualLogs = null;
+        private List<LogEntry> residualLogs;
 
         @Builder.Default
-        private int prevLogIdx = -1;
+        private int prevLogIdx;
 
         @Builder.Default
-        private int prevLogTerm = -1;
+        private int prevLogTerm;
     }
 
     /* FOLLOWER use only */
