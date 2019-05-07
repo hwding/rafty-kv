@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,7 +51,7 @@ public final class Storage {
     @Setter
     @Getter
     @NoArgsConstructor
-    public static class TermTaggedValue {
+    public static class TermTaggedValue implements Serializable {
         private int t;
         private Object v;
 
